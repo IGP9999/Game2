@@ -183,15 +183,17 @@
 
     // update notes by current NOTESPEED
     function update() {
-      notes.forEach(n => {
-        if (!n.active) return;
-        if (n.x > 0) {
-          n.x -= NOTESPEED;
-        } else {
-          n.active = false;
-        }
-      });
+  notes.forEach(n => {
+    if (!n.active) return;
+    n.x -= NOTESPEED;
+    if (n.x <= 0) {
+      n.active = false;
+      combo = 0;
+      comboEl.textContent = combo;
+      showTemporaryText('MISS');
     }
+  });
+}
 
     // combo and UI
     let combo = 0;
