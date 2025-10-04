@@ -2,88 +2,228 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Project Rushing</title>
+  <title>Project Rushing — Song Select</title>
   <style>
     html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
-    canvas { display:block; margin:0 auto; background:#000; }
-    #ui {
-      position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10;
+    .screen { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+    .select-grid { display:grid; gap:18px; grid-template-columns:repeat(3, 220px); }
+    .song-card {
+      width:220px; padding:16px; border-radius:8px; background:rgba(255,255,255,0.04);
+      text-align:center; border:2px solid rgba(255,255,255,0.06);
     }
+    .song-card h3 { margin:6px 0 10px; font-size:20px; }
+    .song-card button {
+      margin-top:8px; padding:8px 12px; font-size:16px; cursor:pointer;
+      background:#1e90ff; color:#fff; border:none; border-radius:6px;
+    }
+    canvas { display:block; margin:0 auto; background:#000; }
+    #ui { position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10; }
     .popup {
-      position:fixed; left:50%; top:80%; transform:translateX(-50%); padding:12px 18px;
+      position:fixed; left:50%; bottom:8%; transform:translateX(-50%); padding:12px 18px;
       background:rgba(255,255,255,0.06); border:0px solid rgba(255,255,255,0.15);
       color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
       text-align:center;
     }
+    .back-btn {
+      position:fixed; left:16px; top:16px;
+      padding:8px 12px; font-size:16px; background:#222; color:#fff; border-radius:6px; cursor:pointer;
+      border:1px solid rgba(255,255,255,0.06);
+    }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
-  <div id="ui"><strong>:</strong> <span id="combo">0</span></div>
-  <canvas id="game" width="800" height="600"></canvas>
+  <!-- Song select screen -->
+  <div id="selectScreen" class="screen">
+    <div class="select-grid">
+      <div class="song-card">
+        <h3>Songname1</h3>
+        <div>Tempo: Medium</div>
+        <button data-song="songname1">Play</button>
+      </div>
+      <div class="song-card">
+        <h3>Songname2</h3>
+        <div>Tempo: Fast</div>
+        <button data-song="songname2">Play</button>
+      </div>
+      <div class="song-card">
+        <h3>Songname3</h3>
+        <div>Tempo: Slow</div>
+        <button data-song="songname3">Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game screen -->
+  <div id="gameScreen" class="screen hidden" style="flex-direction:column;">
+    <button id="back" class="back-btn">Back</button>
+    <div style="position:relative;">
+      <canvas id="game" width="800" height="600" tabindex="0"></canvas>
+      <div id="ui"><strong>:</strong> <span id="combo">0</span></div>
+    </div>
+  </div>
+
+  <div id="audioElements" class="hidden">
+    <!-- Replace these file names with your actual audio files -->
+    <audio id="songname1-audio" src="song1.mp3" preload="auto"></audio>
+    <audio id="songname2-audio" src="song2.mp3" preload="auto"></audio>
+    <audio id="songname3-audio" src="song3.mp3" preload="auto"></audio>
+  </div>
 
   <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-
-    // Game constants
-    const WIDTH = canvas.width;
-    const HEIGHT = canvas.height;
-    const JUDGE_X = 100;           // vertical judgement line x coordinate
-    const NOTE_Y = 350;           // y position for all notes (matches original)
-    const NOTE_Y2 = 500;
-    const NOTE_RADIUS = 30;
-    const NOTE_SPEED = 6;         // pixels per frame (approx same as original)
-    const JUDGE_MIN_X = 0;      // leftmost active region (original used 100..300)
-    const JUDGE_MAX_X = 200;      // rightmost active region
-
-    // judgement boundaries (mirrors original numeric ranges)
-    // We'll keep exact numbers used in original code for consistency
-    function getJudgement(x) {
-      if (x >= (100-25*NOTE_SPEED) && x <(100-16*NOTE_SPEED)) return 'MISS';
-      if (x >= (100-16*NOTE_SPEED) && x <(100-6*NOTE_SPEED)) return 'L-GOOD';
-      if (x >= (100-6*NOTE_SPEED) && x <(100-2*NOTE_SPEED)) return 'L-PERFECT';
-      if (x >= (100-2*NOTE_SPEED) && x <= (100+2*NOTE_SPEED)) return 'ACE';
-      if (x > (100+2*NOTE_SPEED) && x <= (100+6*NOTE_SPEED)) return 'E-PERFECT';
-      if (x > (100+6*NOTE_SPEED) && x <= (100+16*NOTE_SPEED)) return 'E-GOOD';
-      if (x > (100+16*NOTE_SPEED) && x <= (100+25*NOTE_SPEED)) return 'MISS';
-      return null;
-    }
-
-    // Note objects (start positions follow original: x1=440, x2=560, x3=680)
-    const notes = [
-      { x: 440, y: NOTE_Y, active: true },
-      { x: 440, y: NOTE_Y2, active: true },
-      { x: 560, y: NOTE_Y, active: true },
-      { x: 800, y: NOTE_Y, active: true }
+    // ---------------------
+    // Per-song constants
+    // Pattern: songnameXNOTESPEED and songnameXnotes
+    // ---------------------
+    const songname1NOTESPEED = 240; // px/sec
+    const songname1notes = [
+      { x: 800, y: 350, v: songname1NOTESPEED, active: true },
+      { x: 1000, y: 350, v: songname1NOTESPEED, active: true },
+      { x: 1200, y: 500, v: songname1NOTESPEED, active: true } // double/stack note example
     ];
 
-    let combo = 0;
-    const comboEl = document.getElementById('combo');
+    const songname2NOTESPEED = 360;
+    const songname2notes = [
+      { x: 900, y: 350, v: songname2NOTESPEED, active: true },
+      { x: 1100, y: 500, v: songname2NOTESPEED, active: true },
+      { x: 1400, y: 350, v: songname2NOTESPEED, active: true }
+    ];
 
-    // temporary popup text management
-    let popupEl = null;
-    let popupTimer = null;
-    function showTemporaryText(text, ms = 90000) {
-      if (popupEl) {
-        popupEl.remove();
-        popupEl = null;
-        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
-      }
+    const songname3NOTESPEED = 160;
+    const songname3notes = [
+      { x: 700, y: 350, v: songname3NOTESPEED, active: true },
+      { x: 950, y: 350, v: songname3NOTESPEED, active: true },
+      { x: 1300, y: 500, v: songname3NOTESPEED, active: true }
+    ];
+
+    // ---------------------
+    // Screen and audio wiring
+    // ---------------------
+    const selectScreen = document.getElementById('selectScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const backBtn = document.getElementById('back');
+
+    // audio elements
+    const audioMap = {
+      songname1: document.getElementById('songname1-audio'),
+      songname2: document.getElementById('songname2-audio'),
+      songname3: document.getElementById('songname3-audio')
+    };
+
+    // UI buttons
+    document.querySelectorAll('.song-card button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const songKey = btn.dataset.song;
+        startGameWithSong(songKey);
+      });
+    });
+
+    backBtn.addEventListener('click', () => {
+      stopCurrentSong();
+      showSelect();
+    });
+
+    // ---------------------
+    // Game variables
+    // ---------------------
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const JUDGE_X = 100;
+    const NOTE_RADIUS = 30;
+    const comboEl = document.getElementById('combo');
+    let combo = 0;
+    let popupEl = null, popupTimer = null;
+
+    function showTemporaryText(text, ms = 900) {
+      if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); }
       popupEl = document.createElement('div');
       popupEl.className = 'popup';
       popupEl.textContent = text;
       document.body.appendChild(popupEl);
-      popupTimer = setTimeout(() => {
-        if (popupEl) { popupEl.remove(); popupEl = null; }
-        popupTimer = null;
-      }, ms);
+      popupTimer = setTimeout(() => { if (popupEl) { popupEl.remove(); popupEl = null; } popupTimer = null; }, ms);
     }
 
-    // drawing helpers
+    // timing windows in seconds (adjustable)
+    const WINDOWS = {
+      MISS: 0.25,
+      L_GOOD: 0.18,
+      L_PERFECT: 0.12,
+      ACE: 0.06,
+      E_PERFECT: 0.03,
+      E_GOOD: 0.01
+    };
+    function getJudgementByTime(t) {
+      const a = Math.abs(t);
+      if (a <= WINDOWS.E_GOOD) return 'E-GOOD';
+      if (a <= WINDOWS.E_PERFECT) return 'E-PERFECT';
+      if (a <= WINDOWS.ACE) return 'ACE';
+      if (a <= WINDOWS.L_PERFECT) return 'L-PERFECT';
+      if (a <= WINDOWS.L_GOOD) return 'L-GOOD';
+      if (a <= WINDOWS.MISS) return 'MISS';
+      return null;
+    }
+
+    // current song state
+    let currentNotes = []; // will reference the chosen song's note array copy
+    let currentAudio = null;
+    let running = false;
+    let lastTs = 0;
+
+    // Clone a song's notes so per-song constants remain intact
+    function cloneNotesForPlay(songKey) {
+      if (songKey === 'songname1') return songname1notes.map(n => ({ ...n }));
+      if (songKey === 'songname2') return songname2notes.map(n => ({ ...n }));
+      if (songKey === 'songname3') return songname3notes.map(n => ({ ...n }));
+      return [];
+    }
+
+    function getAudioForSong(songKey) { return audioMap[songKey] || null; }
+
+    function startGameWithSong(songKey) {
+      // set notes and audio for game
+      currentNotes = cloneNotesForPlay(songKey);
+      currentAudio = getAudioForSong(songKey);
+
+      // show game screen
+      selectScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+
+      // start audio (browsers may require user gesture; this is a gesture from clicking Play)
+      if (currentAudio) {
+        currentAudio.currentTime = 0;
+        currentAudio.play().catch(e => console.warn('Audio play blocked:', e));
+      }
+
+      // reset combo and UI
+      combo = 0;
+      comboEl.textContent = combo;
+      canvas.focus();
+      running = true;
+      lastTs = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function stopCurrentSong() {
+      running = false;
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+    }
+
+    function showSelect() {
+      selectScreen.classList.remove('hidden');
+      gameScreen.classList.add('hidden');
+    }
+
+    // ---------------------
+    // Drawing & game loop
+    // ---------------------
     function draw() {
       ctx.clearRect(0,0,WIDTH,HEIGHT);
-
-      // judgement line (vertical)
+      // vertical judge line
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -94,7 +234,7 @@
       // draw notes
       ctx.lineWidth = 5;
       ctx.strokeStyle = '#fff';
-      notes.forEach(n => {
+      currentNotes.forEach(n => {
         if (n.active) {
           ctx.beginPath();
           ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI*2);
@@ -103,57 +243,62 @@
       });
     }
 
-    // update positions and deactivate when they pass left of judge region (x <= 100)
-    function update() {
-      notes.forEach(n => {
+    function update(dt) {
+      currentNotes.forEach(n => {
         if (!n.active) return;
-        if (n.x > JUDGE_MIN_X) {
-          n.x -= NOTE_SPEED;
-        } else {
-          n.active = false;
-        }
+        n.x -= n.v * dt;
+        if (n.x < -200) n.active = false;
       });
     }
 
-    // handle key press: same as original, any key down attempts to hit any active note within 100..300
-    function handleKeydown() {
-      for (let i = 0; i < notes.length; i++) {
-        const n = notes[i];
+    function gameLoop(ts) {
+      if (!running) return;
+      const dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+      update(dt);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Judging: use time-to-impact based on note.v
+    function judgeOnce() {
+      for (let i = 0; i < currentNotes.length; i++) {
+        const n = currentNotes[i];
         if (!n.active) continue;
-        if (n.x >= JUDGE_MIN_X && n.x <= JUDGE_MAX_X) {
-          // decide judgement
-          const j = getJudgement(n.x);
+        const timeToImpact = (n.x - JUDGE_X) / n.v; // seconds
+        const j = getJudgementByTime(timeToImpact);
+        if (j !== null) {
           n.active = false;
           if (j === 'MISS') {
             combo = 0;
             showTemporaryText('MISS');
-          } else if (j) {
+          } else {
             combo += 1;
             showTemporaryText(j);
-          } else {
-            // out of judgement windows but inside 100..300 (shouldn't happen)
-            showTemporaryText('MISS');
-            combo = 0;
           }
           comboEl.textContent = combo;
-          // only one note should be judged per keypress (mirrors original branching order)
           break;
         }
       }
     }
 
-    // keyboard listener
-    window.addEventListener('keydown', () => handleKeydown());
+    // Input bindings
+    window.addEventListener('keydown', () => judgeOnce());
+    canvas.addEventListener('mousedown', () => { canvas.focus(); judgeOnce(); });
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); canvas.focus(); judgeOnce(); }, { passive:false });
+    canvas.focus();
 
-    // main loop
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
+    // Ensure we stop song when audio ends
+    Object.values(audioMap).forEach(a => {
+      if (!a) return;
+      a.addEventListener('ended', () => {
+        running = false;
+        showSelect();
+      });
+    });
 
-    // start
-    loop();
+    // initial state: show select screen
+    showSelect();
   </script>
 </body>
 </html>
