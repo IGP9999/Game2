@@ -183,28 +183,31 @@
 
     // update notes by current NOTESPEED
     // update notes by current NOTESPEED and mark too-late notes as MISS
+// update positions, mark MISS when a note goes too far past the judgement zone
 function update() {
-  const LATE_MISS_X = 100 - 25 * NOTESPEED; // same boundary used by getJudgement for MISS
-  notes.forEach(n => {
-    if (!n.active) return;
+  const MISS_BOUND = 25 * NOTESPEED;       // same scale used by getJudgement
+  for (const n of notes) {
+    if (!n.active) continue;
 
     // move note
     if (n.x > 0) {
       n.x -= NOTESPEED;
+    } else {
+      n.active = false;
+      continue;
     }
 
-    // If note passes too far left of the judgement line it's a late MISS
-    if (n.active && n.x <= LATE_MISS_X) {
+    // If note has moved too far past the judgement line on the left side,
+    // treat it as a late MISS (mirrors early MISS behavior)
+    if (n.x < (JUDGE_X - MISS_BOUND)) {
       n.active = false;
       combo = 0;
       comboEl.textContent = combo;
       showTemporaryText('MISS');
     }
-
-    // fallback: deactivate if completely off-screen
-    if (n.x < -100) n.active = false;
-  });
+  }
 }
+
 
 
     // combo and UI
