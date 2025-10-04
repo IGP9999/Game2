@@ -86,7 +86,7 @@
         id: 'songname3',
         title: 'songname3 - Fast Stream',
         audioSrc: '',
-        NOTESPEED: 12,
+        NOTESPEED: 20,
         notesArrayName: 'songname3notes',
         notesData: [
           { x: 500, y: NOTE_Y, active: true },
@@ -131,7 +131,7 @@
     // temporary popup text management
     let popupEl = null;
     let popupTimer = null;
-    function showTemporaryText(text, ms = 900) {
+    function showTemporaryText(text, ms = 90000) {
       if (popupEl) {
         popupEl.remove();
         popupEl = null;
