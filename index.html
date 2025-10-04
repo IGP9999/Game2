@@ -2,20 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Project Rushing - Song Select with Original Judgement</title>
+  <title>Project Rushing — Immediate MISS on pass</title>
   <style>
     html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
     canvas { display:block; margin:0 auto; background:#000; }
     #ui { position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10; }
     .popup {
-      position:fixed; left:50%; top:80%; transform:translateX(-50%); padding:12px 18px;
-      background:rgba(255,255,255,0.06); color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
+      position:fixed; left:50%; top:80%; transform:translateX(-50%); padding:8px 14px;
+      background:rgba(255,255,255,0.06); color:#fff; font-size:28px; border-radius:8px; pointer-events:none; z-index:20;
       text-align:center;
     }
-    #songSelect {
-      position:fixed; left:20px; top:20px; z-index:30; background:rgba(255,255,255,0.03);
-      padding:12px; border-radius:8px; width:300px;
-    }
+    #songSelect { position:fixed; left:20px; top:20px; z-index:30; background:rgba(255,255,255,0.03);
+      padding:12px; border-radius:8px; width:300px; }
     .songItem { margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
     .songItem button { padding:6px 12px; font-size:16px; cursor:pointer; }
     #currentSong { position:fixed; left:20px; top:260px; font-size:18px; color:#ccc; }
@@ -96,7 +94,7 @@
         id: 'songname3',
         title: 'songname3 - Fast Stream',
         audioSrc: '',
-        NOTESPEED: 25,
+        NOTESPEED: 20,
         notesData: [
           { x: 500, y: NOTE_Y }, { x: 560, y: NOTE_Y }, { x: 620, y: NOTE_Y }, { x: 680, y: NOTE_Y }, { x: 740, y: NOTE_Y }, { x: 820, y: NOTE_Y }
         ]
@@ -129,15 +127,22 @@
       });
     }
 
-    // Popup helper
+    // Popup helper (short default duration)
     let popupEl = null, popupTimer = null;
     function showTemporaryText(text, ms = 900) {
-      if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); popupTimer = null; }
+      if (popupEl) {
+        popupEl.remove();
+        popupEl = null;
+        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+      }
       popupEl = document.createElement('div');
       popupEl.className = 'popup';
       popupEl.textContent = text;
       document.body.appendChild(popupEl);
-      popupTimer = setTimeout(() => { if (popupEl) { popupEl.remove(); popupEl = null; } popupTimer = null; }, ms);
+      popupTimer = setTimeout(() => {
+        if (popupEl) { popupEl.remove(); popupEl = null; }
+        popupTimer = null;
+      }, ms);
     }
 
     // Scoring helpers
@@ -161,9 +166,8 @@
       aceCountEl.textContent = aceCount;
     }
 
-    // Original directional judgement (keeps ACE window small on purpose)
+    // Original directional judgement (small ACE window preserved)
     function getJudgement(x) {
-      // Using the user's original windows relative to 100 and NOTESPEED
       if (x >= (100 - 25 * NOTESPEED) && x < (100 - 16 * NOTESPEED)) return 'MISS';
       if (x >= (100 - 16 * NOTESPEED) && x < (100 - 6 * NOTESPEED)) return 'L-GOOD';
       if (x >= (100 - 6 * NOTESPEED) && x < (100 - 2 * NOTESPEED)) return 'L-PERFECT';
@@ -174,31 +178,26 @@
       return null;
     }
 
-    // Apply judgement to scoring and combo
+    // Apply judgement — only ACE increments bonus counter
     function applyJudgement(judgement) {
-  // Map judgement to point (ACE/PERFECT = 1, GOOD = 0.5, MISS = 0)
-  let point = 0;
-  if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
-    point = 1;
-  } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
-    point = 0.5;
-  } else {
-    point = 0;
-  }
+      let point = 0;
+      if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
+        point = 1;
+      } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
+        point = 0.5;
+      } else {
+        point = 0;
+      }
 
-  // Only ACE increases the bonus counter
-  if (judgement === 'ACE') aceCount += 1;
-
-  if (point === 0) missCount += 1;
-  basePoints += point;
-  updateScoreUI();
-}
-
+      if (judgement === 'ACE') aceCount += 1;
+      if (point === 0) missCount += 1;
+      basePoints += point;
+      updateScoreUI();
+    }
 
     // Drawing
     function draw() {
       ctx.clearRect(0,0,WIDTH,HEIGHT);
-      // judge line
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -206,7 +205,6 @@
       ctx.lineTo(JUDGE_X, 100);
       ctx.stroke();
 
-      // notes
       ctx.lineWidth = 5;
       ctx.strokeStyle = '#fff';
       notes.forEach(n => {
@@ -218,7 +216,8 @@
       });
     }
 
-    // Update loop: move notes and auto-MISS if they pass left limit
+    // Update loop: move notes and auto-MISS if they pass left limit.
+    // Immediate MISS popup uses requestAnimationFrame to ensure DOM paint happens promptly.
     function getLeftMissLimit() { return JUDGE_X - 25 * NOTESPEED; }
 
     function update() {
@@ -226,14 +225,18 @@
       notes.forEach(n => {
         if (!n.active) return;
         n.x -= NOTESPEED;
-        // Treat notes that move beyond leftMissLimit as MISS
+
+        // Use <= to avoid skipping due to step jumps
         if (n.x <= leftMissLimit) {
           n.active = false;
           combo = 0;
           comboEl.textContent = combo;
           missCount += 1;
-          showTemporaryText('MISS');
+          // Update score state synchronously
+          basePoints += 0; // miss adds nothing
           updateScoreUI();
+          // Ensure popup renders immediately on next paint
+          requestAnimationFrame(() => showTemporaryText('MISS', 900));
         }
       });
     }
@@ -258,19 +261,20 @@
       }
       if (!nearest) return;
 
-      const MAX_HIT_DISTANCE = 25 * NOTESPEED; // same envelope your original used
+      // active region: same envelope as original
       if (nearest.x < (JUDGE_X - 25 * NOTESPEED) || nearest.x > (JUDGE_X + 25 * NOTESPEED)) {
-        return; // outside active region
+        return;
       }
 
       const j = getJudgement(nearest.x);
       nearest.active = false;
       if (j === 'MISS' || j === null) {
         combo = 0;
-        showTemporaryText('MISS');
+        // Use rAF so MISS popup timing is consistent with auto-miss
+        requestAnimationFrame(() => showTemporaryText('MISS', 900));
       } else {
         combo += 1;
-        showTemporaryText(j);
+        showTemporaryText(j, 900);
       }
       comboEl.textContent = combo;
       applyJudgement(j);
@@ -297,11 +301,8 @@
     function selectSong(id) {
       const s = songs[id];
       if (!s) return;
-      // stop audio
       musicEl.pause();
       musicEl.currentTime = 0;
-
-      // set runtime speed and notes
       NOTESPEED = s.NOTESPEED;
       notes = cloneNotes(s.notesData);
       initScoringForSong(notes);
@@ -322,8 +323,8 @@
 
     createSongButtons();
     loop();
-    // Expose programmatic start
     window.startSongById = selectSong;
   </script>
 </body>
 </html>
+
