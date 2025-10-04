@@ -180,13 +180,13 @@
 
     // Judgement windows (original directional system)
     function getJudgement(x){
-      if (x >= (JUDGE_X - 25*NOTESPEED) && x < (JUDGE_X - 14*NOTESPEED)) return 'MISS';
-      if (x >= (JUDGE_X - 14*NOTESPEED) && x < (JUDGE_X - 5*NOTESPEED)) return 'L-GOOD';
+      if (x >= (JUDGE_X - 12*NOTESPEED) && x < (JUDGE_X - 8*NOTESPEED)) return 'MISS';
+      if (x >= (JUDGE_X - 8*NOTESPEED) && x < (JUDGE_X - 5*NOTESPEED)) return 'L-GOOD';
       if (x >= (JUDGE_X - 5*NOTESPEED) && x < (JUDGE_X - 1*NOTESPEED)) return 'L-PERFECT';
       if (x >= (JUDGE_X - 1*NOTESPEED) && x <= (JUDGE_X + 1*NOTESPEED)) return 'ACE';
       if (x > (JUDGE_X + 1*NOTESPEED) && x <= (JUDGE_X + 5*NOTESPEED)) return 'E-PERFECT';
-      if (x > (JUDGE_X + 5*NOTESPEED) && x <= (JUDGE_X + 14*NOTESPEED)) return 'E-GOOD';
-      if (x > (JUDGE_X + 14*NOTESPEED) && x <= (JUDGE_X + 25*NOTESPEED)) return 'MISS';
+      if (x > (JUDGE_X + 5*NOTESPEED) && x <= (JUDGE_X + 8*NOTESPEED)) return 'E-GOOD';
+      if (x > (JUDGE_X + 8*NOTESPEED) && x <= (JUDGE_X + 12*NOTESPEED)) return 'MISS';
       return null;
     }
 
