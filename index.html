@@ -39,13 +39,13 @@
     // judgement boundaries (mirrors original numeric ranges)
     // We'll keep exact numbers used in original code for consistency
     function getJudgement(x) {
-      if (x >= 0 && x < 36) return 'MISS';
-      if (x >= 36 && x < 76) return 'L-GOOD';
-      if (x >= 76 && x < 92) return 'L-PERFECT';
-      if (x >= 92 && x <= 108) return 'ACE';
-      if (x > 108 && x <= 124) return 'E-PERFECT';
-      if (x > 124 && x <= 156) return 'E-GOOD';
-      if (x > 156 && x <= 200) return 'MISS';
+      if (x >= (100-25*NOTE_SPEED) && x <(100-16*NOTE_SPEED)) return 'MISS';
+      if (x >= (100-16*NOTE_SPEED) && x <(100-6*NOTE_SPEED)) return 'L-GOOD';
+      if (x >= (100-6*NOTE_SPEED) && x <(100-2*NOTE_SPEED)) return 'L-PERFECT';
+      if (x >= (100-2*NOTE_SPEED) && x <= (100+2*NOTE_SPEED)) return 'ACE';
+      if (x > (100+2*NOTE_SPEED) && x <= (100+6*NOTE_SPEED)) return 'E-PERFECT';
+      if (x > (100+6*NOTE_SPEED) && x <= (100+16*NOTE_SPEED)) return 'E-GOOD';
+      if (x > (100+16*NOTE_SPEED) && x <= (100+25*NOTE_SPEED)) return 'MISS';
       return null;
     }
 
