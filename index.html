@@ -59,7 +59,7 @@
     // Scoring state
     let totalNotes = 0;
     let basePoints = 0; // sum of 1 (ACE/PERFECT) or 0.5 (GOOD) or 0 (MISS)
-    let aceCount = 0;   // only ACE increments this
+    let aceCount = 0;
     let missCount = 0;
 
     // UI refs
@@ -129,7 +129,7 @@
       });
     }
 
-    // Popup helper (short default duration so UI updates are visible and not overridden)
+    // Popup helper (short visible duration for snappy UI)
     let popupEl = null, popupTimer = null;
     function showTemporaryText(text, ms = 900) {
       if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); popupTimer = null; }
@@ -161,7 +161,7 @@
       aceCountEl.textContent = aceCount;
     }
 
-    // Original directional judgement (small ACE window preserved)
+    // Original directional judgement (keeps ACE window small on purpose)
     function getJudgement(x) {
       if (x >= (100 - 25 * NOTESPEED) && x < (100 - 16 * NOTESPEED)) return 'MISS';
       if (x >= (100 - 16 * NOTESPEED) && x < (100 - 6 * NOTESPEED)) return 'L-GOOD';
@@ -173,7 +173,7 @@
       return null;
     }
 
-    // Apply judgement to scoring and combo; only exact 'ACE' increases aceCount (bonus)
+    // Apply judgement to scoring and combo (ACE only increments aceCount)
     function applyJudgement(judgement) {
       let point = 0;
       if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
@@ -184,7 +184,7 @@
         point = 0;
       }
 
-      if (judgement === 'ACE') aceCount += 1; // ONLY ACE increments bonus counter
+      if (judgement === 'ACE') aceCount += 1;
       if (point === 0) missCount += 1;
       basePoints += point;
       updateScoreUI();
@@ -193,6 +193,7 @@
     // Drawing
     function draw() {
       ctx.clearRect(0,0,WIDTH,HEIGHT);
+      // judge line
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -200,6 +201,7 @@
       ctx.lineTo(JUDGE_X, 100);
       ctx.stroke();
 
+      // notes
       ctx.lineWidth = 5;
       ctx.strokeStyle = '#fff';
       notes.forEach(n => {
@@ -214,25 +216,29 @@
     // Update loop: move notes and auto-MISS if they pass left limit
     function getLeftMissLimit() { return JUDGE_X - 25 * NOTESPEED; }
 
+    function forceShowMiss() {
+      // ensure DOM updated and popup paints immediately
+      combo = 0;
+      comboEl.textContent = combo;
+      requestAnimationFrame(() => { showTemporaryText('MISS', 900); });
+    }
+
     function update() {
       const leftMissLimit = getLeftMissLimit();
-      notes.forEach(n => {
-        if (!n.active) return;
-        // move note
+      // iterate backwards to safely modify array entries if you want to splice later
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        if (!n.active) continue;
         n.x -= NOTESPEED;
-        // immediate miss check using <= so stepping past doesn't skip the case
+        // immediate miss when crossing the left threshold — show instantly using requestAnimationFrame
         if (n.x <= leftMissLimit) {
           n.active = false;
-          combo = 0;
-          comboEl.textContent = combo;
           missCount += 1;
-          // requestAnimationFrame ensures DOM update/paint occurs immediately before showing popup
-          requestAnimationFrame(() => {
-            showTemporaryText('MISS', 900);
-            updateScoreUI();
-          });
+          // update UI state immediately and schedule the popup for the next paint
+          forceShowMiss();
+          updateScoreUI();
         }
-      });
+      }
     }
 
     // Combo + input management (nearest-note selection, small debounce)
@@ -244,6 +250,7 @@
       if (now - lastInputTime < INPUT_COOLDOWN_MS) return;
       lastInputTime = now;
 
+      // find nearest active note to judge
       let nearest = null;
       let bestDist = Infinity;
       for (let i = 0; i < notes.length; i++) {
@@ -254,20 +261,19 @@
       }
       if (!nearest) return;
 
-      // active region check (same envelope your original used)
-      if (nearest.x < (JUDGE_X - 25 * NOTESPEED) || nearest.x > (JUDGE_X + 25 * NOTESPEED)) {
-        return;
-      }
+      // active region same as original envelope
+      if (nearest.x < (JUDGE_X - 25 * NOTESPEED) || nearest.x > (JUDGE_X + 25 * NOTESPEED)) return;
 
       const j = getJudgement(nearest.x);
       nearest.active = false;
+
       if (j === 'MISS' || j === null) {
         combo = 0;
-        // ensure immediate paint before popup
-        requestAnimationFrame(() => showTemporaryText('MISS', 900));
+        // ensure popup paints promptly
+        requestAnimationFrame(() => { showTemporaryText('MISS', 900); });
       } else {
         combo += 1;
-        requestAnimationFrame(() => showTemporaryText(j, 900));
+        requestAnimationFrame(() => { showTemporaryText(j, 900); });
       }
       comboEl.textContent = combo;
       applyJudgement(j);
@@ -294,9 +300,11 @@
     function selectSong(id) {
       const s = songs[id];
       if (!s) return;
+      // stop audio
       musicEl.pause();
       musicEl.currentTime = 0;
 
+      // set runtime speed and notes
       NOTESPEED = s.NOTESPEED;
       notes = cloneNotes(s.notesData);
       initScoringForSong(notes);
@@ -317,6 +325,7 @@
 
     createSongButtons();
     loop();
+    // Expose programmatic start
     window.startSongById = selectSong;
   </script>
 </body>
