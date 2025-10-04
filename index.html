@@ -30,6 +30,7 @@
     const HEIGHT = canvas.height;
     const JUDGE_X = 100;           // vertical judgement line x coordinate
     const NOTE_Y = 350;           // y position for all notes (matches original)
+    const NOTE_Y2 = 500;
     const NOTE_RADIUS = 30;
     const NOTE_SPEED = 4;         // pixels per frame (approx same as original)
     const JUDGE_MIN_X = 0;      // leftmost active region (original used 100..300)
@@ -51,6 +52,7 @@
     // Note objects (start positions follow original: x1=440, x2=560, x3=680)
     const notes = [
       { x: 440, y: NOTE_Y, active: true },
+      { x: 440, y: NOTE_Y2, active: true },
       { x: 560, y: NOTE_Y, active: true },
       { x: 800, y: NOTE_Y, active: true }
     ];
