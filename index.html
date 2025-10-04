@@ -2,26 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Project Rushing - Song Select</title>
+  <title>Project Rushing - Song Select with Scoring</title>
   <style>
     html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
     canvas { display:block; margin:0 auto; background:#000; }
-    #ui {
-      position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10;
-    }
+    #ui { position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10; }
     .popup {
       position:fixed; left:50%; top:80%; transform:translateX(-50%); padding:12px 18px;
-      background:rgba(255,255,255,0.06); border:0px solid rgba(255,255,255,0.15);
-      color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
+      background:rgba(255,255,255,0.06); color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
       text-align:center;
     }
     #songSelect {
       position:fixed; left:20px; top:20px; z-index:30; background:rgba(255,255,255,0.03);
-      padding:12px; border-radius:8px; width:270px;
+      padding:12px; border-radius:8px; width:300px;
     }
     .songItem { margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
     .songItem button { padding:6px 12px; font-size:16px; cursor:pointer; }
-    #currentSong { position:fixed; left:20px; top:220px; font-size:18px; color:#ccc; }
+    #currentSong { position:fixed; left:20px; top:260px; font-size:18px; color:#ccc; }
+    #scoreUI { position:fixed; left:20px; bottom:20px; color:#fff; z-index:40; font-size:14px; }
+    #scoreUI small { color:#7f7; }
   </style>
 </head>
 <body>
@@ -34,13 +33,18 @@
   <div id="currentSong">No song loaded</div>
   <canvas id="game" width="800" height="600"></canvas>
 
+  <div id="scoreUI">
+    <div><strong>Score:</strong> <span id="basePercent">0.00%</span> <small>(+<span id="bonusPercent">0.00%</span> bonus)</small></div>
+    <div><strong>Total:</strong> <span id="totalPercent">0.00%</span></div>
+    <div style="font-size:13px; color:#aaa;">Notes: <span id="totalNotes">0</span> | ACEs: <span id="aceCount">0</span></div>
+  </div>
+
   <audio id="music" preload="auto"></audio>
 
   <script>
+    // Canvas + basic constants
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-
-    // Game constants that will be set when a song is selected
     const WIDTH = canvas.width;
     const HEIGHT = canvas.height;
     const JUDGE_X = 100;
@@ -48,24 +52,35 @@
     let NOTE_Y = 350;
     let NOTE_Y2 = 500;
 
-    // Runtime (will be replaced per-song)
-    let NOTESPEED = 6;
-    let notes = [];
+    // Runtime variables
+    let NOTESPEED = 6; // pixels per frame (legacy). You can convert to px/sec if desired.
+    let notes = [];    // active notes in play
 
-    // Example songs definition: songname1, songname2, songname3
-    // Each song has its own NOTESPEED and notes array named as requested
+    // Scoring state
+    let totalNotes = 0;
+    let basePoints = 0; // sum of 1 (ACE/PERFECT) or 0.5 (GOOD) or 0 (MISS)
+    let aceCount = 0;
+    let missCount = 0;
+
+    // UI refs
+    const comboEl = document.getElementById('combo');
+    const basePercentEl = document.getElementById('basePercent');
+    const bonusPercentEl = document.getElementById('bonusPercent');
+    const totalPercentEl = document.getElementById('totalPercent');
+    const totalNotesEl = document.getElementById('totalNotes');
+    const aceCountEl = document.getElementById('aceCount');
+    const musicEl = document.getElementById('music');
+    const currentSongEl = document.getElementById('currentSong');
+
+    // Example songs (fill audioSrc with actual files when ready)
     const songs = {
       songname1: {
         id: 'songname1',
         title: 'songname1 - Easy Pulse',
-        audioSrc: '', // replace '' with a path to an audio file, e.g. 'audio/song1.mp3'
+        audioSrc: '', // e.g. 'assets/song1.mp3'
         NOTESPEED: 6,
-        notesArrayName: 'songname1notes',
         notesData: [
-          { x: 440, y: NOTE_Y, active: true },
-          { x: 560, y: NOTE_Y, active: true },
-          { x: 680, y: NOTE_Y, active: true },
-          { x: 860, y: NOTE_Y, active: true }
+          { x: 440, y: NOTE_Y }, { x: 560, y: NOTE_Y }, { x: 680, y: NOTE_Y }, { x: 860, y: NOTE_Y }
         ]
       },
       songname2: {
@@ -73,13 +88,8 @@
         title: 'songname2 - DoubleLine',
         audioSrc: '',
         NOTESPEED: 8,
-        notesArrayName: 'songname2notes',
         notesData: [
-          { x: 440, y: NOTE_Y, active: true },
-          { x: 440, y: NOTE_Y2, active: true },
-          { x: 560, y: NOTE_Y, active: true },
-          { x: 680, y: NOTE_Y2, active: true },
-          { x: 820, y: NOTE_Y, active: true }
+          { x: 440, y: NOTE_Y }, { x: 440, y: NOTE_Y2 }, { x: 560, y: NOTE_Y }, { x: 680, y: NOTE_Y2 }, { x: 820, y: NOTE_Y }
         ]
       },
       songname3: {
@@ -87,19 +97,13 @@
         title: 'songname3 - Fast Stream',
         audioSrc: '',
         NOTESPEED: 20,
-        notesArrayName: 'songname3notes',
         notesData: [
-          { x: 500, y: NOTE_Y, active: true },
-          { x: 560, y: NOTE_Y, active: true },
-          { x: 620, y: NOTE_Y, active: true },
-          { x: 680, y: NOTE_Y, active: true },
-          { x: 740, y: NOTE_Y, active: true },
-          { x: 820, y: NOTE_Y, active: true }
+          { x: 500, y: NOTE_Y }, { x: 560, y: NOTE_Y }, { x: 620, y: NOTE_Y }, { x: 680, y: NOTE_Y }, { x: 740, y: NOTE_Y }, { x: 820, y: NOTE_Y }
         ]
       }
     };
 
-    // Expose per-song named constants as requested (const-like)
+    // Expose per-song named constants (as requested)
     const songname1NOTESPEED = songs.songname1.NOTESPEED;
     const songname1notes = songs.songname1.notesData;
     const songname2NOTESPEED = songs.songname2.NOTESPEED;
@@ -107,11 +111,8 @@
     const songname3NOTESPEED = songs.songname3.NOTESPEED;
     const songname3notes = songs.songname3.notesData;
 
-    // UI wiring: build song select buttons
+    // Build song select UI
     const songsList = document.getElementById('songsList');
-    const musicEl = document.getElementById('music');
-    const currentSongEl = document.getElementById('currentSong');
-
     function createSongButtons() {
       Object.values(songs).forEach(s => {
         const row = document.createElement('div');
@@ -128,41 +129,76 @@
       });
     }
 
-    // temporary popup text management
-    let popupEl = null;
-    let popupTimer = null;
-    function showTemporaryText(text, ms = 90000) {
-      if (popupEl) {
-        popupEl.remove();
-        popupEl = null;
-        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
-      }
+    // Popup helper
+    let popupEl = null, popupTimer = null;
+    function showTemporaryText(text, ms = 900) {
+      if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); popupTimer = null; }
       popupEl = document.createElement('div');
       popupEl.className = 'popup';
       popupEl.textContent = text;
       document.body.appendChild(popupEl);
-      popupTimer = setTimeout(() => {
-        if (popupEl) { popupEl.remove(); popupEl = null; }
-        popupTimer = null;
-      }, ms);
+      popupTimer = setTimeout(() => { if (popupEl) { popupEl.remove(); popupEl = null; } popupTimer = null; }, ms);
     }
 
-    // judgement uses NOTESPEED dynamically
+    // Scoring helpers
+    function initScoringForSong(noteArray) {
+      totalNotes = noteArray.length;
+      basePoints = 0;
+      aceCount = 0;
+      missCount = 0;
+      updateScoreUI();
+      totalNotesEl.textContent = totalNotes;
+      aceCountEl.textContent = aceCount;
+    }
+
+    function updateScoreUI() {
+      const basePercent = totalNotes > 0 ? (basePoints / totalNotes) * 100 : 0;
+      const bonusPercent = totalNotes > 0 ? (aceCount / totalNotes) * 1 : 0; // 1% total if all ACE
+      const totalPercent = basePercent + bonusPercent;
+      basePercentEl.textContent = basePercent.toFixed(2) + '%';
+      bonusPercentEl.textContent = bonusPercent.toFixed(2) + '%';
+      totalPercentEl.textContent = totalPercent.toFixed(2) + '%';
+      aceCountEl.textContent = aceCount;
+    }
+
+    // Judgement (distance-based, symmetric)
     function getJudgement(x) {
-      if (x >= (100-25*NOTESPEED) && x <(100-16*NOTESPEED)) return 'MISS';
-      if (x >= (100-16*NOTESPEED) && x <(100-6*NOTESPEED)) return 'L-GOOD';
-      if (x >= (100-6*NOTESPEED) && x <(100-2*NOTESPEED)) return 'L-PERFECT';
-      if (x >= (100-2*NOTESPEED) && x <= (100+2*NOTESPEED)) return 'ACE';
-      if (x > (100+2*NOTESPEED) && x <= (100+6*NOTESPEED)) return 'E-PERFECT';
-      if (x > (100+6*NOTESPEED) && x <= (100+16*NOTESPEED)) return 'E-GOOD';
-      if (x > (100+16*NOTESPEED) && x <= (100+25*NOTESPEED)) return 'MISS';
-      return null;
+      const d = Math.abs(x - JUDGE_X);
+      const aceThresh = 2 * NOTESPEED;
+      const perfThresh = 6 * NOTESPEED;
+      const goodThresh = 16 * NOTESPEED;
+      const missThresh = 25 * NOTESPEED;
+
+      if (d > missThresh) return 'MISS';
+      if (d > goodThresh && d <= missThresh) return 'MISS';
+      if (d > perfThresh && d <= goodThresh) return 'L-GOOD';
+      if (d > aceThresh && d <= perfThresh) return 'L-PERFECT';
+      if (d <= aceThresh) return 'ACE';
+      return 'MISS';
     }
 
-    // draw everything
+    // Apply judgement to scoring and combo
+    function applyJudgement(judgement) {
+      // Map judgement to point (ACE/PERFECT=1, GOOD=0.5, MISS=0)
+      let point = 0;
+      if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT' || judgement === 'L-PERFECT') {
+        point = 1;
+      } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
+        point = 0.5;
+      } else {
+        point = 0;
+      }
+
+      if (point === 1) aceCount += 1;
+      if (point === 0) missCount += 1;
+      basePoints += point;
+      updateScoreUI();
+    }
+
+    // Drawing
     function draw() {
       ctx.clearRect(0,0,WIDTH,HEIGHT);
-
+      // judge line
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -170,6 +206,7 @@
       ctx.lineTo(JUDGE_X, 100);
       ctx.stroke();
 
+      // notes
       ctx.lineWidth = 5;
       ctx.strokeStyle = '#fff';
       notes.forEach(n => {
@@ -181,50 +218,67 @@
       });
     }
 
-    // update notes by current NOTESPEED
+    // Update loop: move notes and auto-MISS if they pass left limit
+    function getLeftMissLimit() { return JUDGE_X - 25 * NOTESPEED; }
+
     function update() {
-  notes.forEach(n => {
-    if (!n.active) return;
-    n.x -= NOTESPEED;
-    if (n.x <= 0) {
-      n.active = false;
-      combo = 0;
-      comboEl.textContent = combo;
-      showTemporaryText('MISS');
+      const leftMissLimit = getLeftMissLimit();
+      notes.forEach(n => {
+        if (!n.active) return;
+        n.x -= NOTESPEED;
+        if (n.x <= leftMissLimit) {
+          n.active = false;
+          combo = 0;
+          comboEl.textContent = combo;
+          missCount += 1;
+          showTemporaryText('MISS');
+          updateScoreUI();
+        }
+      });
     }
-  });
-}
 
-    // combo and UI
+    // Combo + input management
     let combo = 0;
-    const comboEl = document.getElementById('combo');
-
+    let lastInputTime = 0;
+    const INPUT_COOLDOWN_MS = 60;
     function handleKeydown() {
+      const now = performance.now();
+      if (now - lastInputTime < INPUT_COOLDOWN_MS) return;
+      lastInputTime = now;
+
+      // find nearest active note to judge
+      let nearest = null;
+      let bestDist = Infinity;
       for (let i = 0; i < notes.length; i++) {
         const n = notes[i];
         if (!n.active) continue;
-        if (n.x >= 0 && n.x <= 300) {
-          const j = getJudgement(n.x);
-          n.active = false;
-          if (j === 'MISS') {
-            combo = 0;
-            showTemporaryText('MISS');
-          } else if (j) {
-            combo += 1;
-            showTemporaryText(j);
-          } else {
-            showTemporaryText('MISS');
-            combo = 0;
-          }
-          comboEl.textContent = combo;
-          break;
-        }
+        const dist = Math.abs(n.x - JUDGE_X);
+        if (dist < bestDist) { bestDist = dist; nearest = n; }
       }
+      if (!nearest) return;
+
+      const MAX_HIT_DISTANCE = 25 * NOTESPEED;
+      if (bestDist > MAX_HIT_DISTANCE) {
+        // too far, ignore or optionally show MISS
+        return;
+      }
+
+      const j = getJudgement(nearest.x);
+      nearest.active = false;
+      if (j === 'MISS') {
+        combo = 0;
+        showTemporaryText('MISS');
+      } else {
+        combo += 1;
+        showTemporaryText(j);
+      }
+      comboEl.textContent = combo;
+      applyJudgement(j);
     }
 
-    window.addEventListener('keydown', () => handleKeydown());
+    window.addEventListener('keydown', handleKeydown);
 
-    // main loop
+    // Loop
     let running = false;
     function loop() {
       if (running) {
@@ -234,34 +288,27 @@
       requestAnimationFrame(loop);
     }
 
-    // song selection logic: assign the runtime NOTESPEED and notes from chosen song
+    // Helpers: clone notes so replays reset them
     function cloneNotes(arr) {
-      return arr.map(n => ({ x: n.x, y: n.y, active: true }));
+      return arr.map(n => ({ x: n.x, y: n.y, active: true, beatTime: n.beatTime || null }));
     }
 
+    // Song selection
     function selectSong(id) {
       const s = songs[id];
       if (!s) return;
-      // stop existing audio
+      // stop audio
       musicEl.pause();
       musicEl.currentTime = 0;
 
-      // assign runtime constants from song
+      // set runtime speed and notes
       NOTESPEED = s.NOTESPEED;
-      // set named arrays too (exposed const-like values already above)
-      if (id === 'songname1') {
-        // nothing else needed, songname1NOTESPEED and songname1notes already exist
-      }
-      // clone notes so re-playing resets them
       notes = cloneNotes(s.notesData);
+      initScoringForSong(notes);
 
-      // set music source and play if available
       if (s.audioSrc) {
         musicEl.src = s.audioSrc;
-        musicEl.play().catch(() => {
-          // autoplay may be blocked; user must interact to enable audio in some browsers
-          showTemporaryText('Click to enable audio', 1600);
-        });
+        musicEl.play().catch(() => { showTemporaryText('Click to enable audio', 1600); });
       } else {
         musicEl.src = '';
       }
@@ -273,13 +320,9 @@
       showTemporaryText('Loaded ' + s.title, 900);
     }
 
-    // initialize UI
     createSongButtons();
-
-    // auto-start loop
     loop();
-
-    // convenience: expose a simple API to programmatically start a song
+    // Expose programmatic start
     window.startSongById = selectSong;
   </script>
 </body>
