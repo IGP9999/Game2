@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>8Bits Adventure</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <!-- Google Font: Press Start 2P -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      background: #333;
+      color: white;
+      font-family: "Press Start 2P", sans-serif;
+      text-align: center;
+      margin: 0;
+    }
+    canvas {
+      background: #737373;
+      display: block;
+      margin: 2em auto;
+      border: 2px solid white;
+    }
+    #game-hud {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #002591;
+      color: white;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px;
+      box-sizing: border-box;
+      border-top: 2px solid black;
+    }
+    .hud-section {
+      text-align: center;
+      padding: 0 1em;
+    }
+    #player-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #hp-bar-container {
+      width: 150px;
+      height: 20px;
+      background-color: #555;
+      border: 1px solid white;
+      position: relative;
+    }
+    #hp-bar {
+      width: 100%;
+      height: 100%;
+      background-color: #00FF00;
+      transition: width 0.5s linear;
+    }
+    #hp-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.8em;
+      text-shadow: 1px 1px 2px black;
+    }
+    #battle-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      display: none;
+      z-index: 2000;
+    }
+    #enemy-display {
+      background-color: #555;
+      padding: 20px;
+      border: 2px solid white;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #enemy-display button {
+      background-color: #333;
+      color: white;
+      border: 1px solid white;
+      cursor: pointer;
+      padding: 10px;
+      font-family: "Press Start 2P", sans-serif;
+      min-width: 100px;
+      user-select: none;
+    }
+    #enemy-display button.selected {
+      border: 2px solid yellow;
+      background-color: #555;
+    }
+    #battle-controls button {
+      font-family: "Press Start 2P", sans-serif;
+      padding: 10px 20px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #player-battle-status {
+      background-color: #002591;
+      color: white;
+      border: 2px solid black;
+      padding: 10px;
+      margin-top: 20px;
+      width: 250px;
+      text-align: left;
+    }
+    #player-battle-status p {
+      margin: 0;
+      font-size: 1em;
+      user-select: none;
+    }
+    #player-battle-status .hp-bar-container {
+      width: 100%;
+      height: 15px;
+      background-color: #555;
+      border: 1px solid white;
+      position: relative;
+      margin: 8px 0;
+    }
+    #player-battle-status .hp-bar {
+      height: 100%;
+      background-color: #00FF00;
+    }
+    #stats {
+      position: relative;
+      user-select: none;
+    }
+    .stats-popup {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      width: 200px;
+      background-color: #002591;
+      border: 2px solid black;
+      padding: 10px;
+      color: white;
+      text-align: left;
+      z-index: 1000;
+      font-size: 0.75em;
+      line-height: 1.2em;
+    }
+    .enemy-target.stunned {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+    .enemy-target.shielded {
+  box-shadow: 0 0 10px 10px rgba(0, 150, 255, 0.8);
+  border-color: #0096ff;
+}
+    .enemy-target.poisoned {
+  box-shadow: 0 0 10px 10px rgba(0, 120, 0, 0.8);
+  border-color: ##007800;
+}
+    #player-battle-status .hp-bar-container:last-of-type .hp-bar {
+      background-color: #00FFFF;
+    }
+    #player-battle-status .hp-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.7em;
+      text-shadow: 1px 1px 2px black;
+      user-select: none;
+    }
+    /* Inventory styling */
+    #inventory-list {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .inventory-item {
+      display: flex;
+      flex-direction: column;
+      padding: 5px;
+      border: 1px solid #555;
+      border-radius: 3px;
+      background-color: #55260e;
+      color: white;
+      min-width: 90px;
+      user-select: none;
+    }
+    .inventory-popup {
+      display: none;
+      position: absolute;
+      bottom: 200px;
+      right: 100px;
+      width: 250px;
+      max-height: 300px;
+      background-color: #55260e;
+      border: 2px solid black;
+      color: white;
+      padding: 10px;
+      text-align: left;
+      overflow-y: auto;
+      z-index: 1000;
+      font-size: 0.75em;
+    }
+    .item-use-button {
+      font-family: "Press Start 2P", sans-serif;
+      font-size: 0.7em;
+      padding: 2px 5px;
+      cursor: pointer;
+      margin-top: 5px;
+      align-self: flex-start;
+      background-color: #333;
+      border: 1px solid white;
+      color: white;
+      user-select: none;
+    }
+    .item-use-button:hover {
+      background-color: #555;
+    }
+    #game-over-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 2000;
+}
+
+.game-over-content {
+  color: white;
+  font-family: "Press Start 2P", sans-serif;
+}
+
+    /* Save and Load buttons styling */
+    #game-hud button {
+      font-family: "Press Start 2P", sans-serif;
+      padding: 8px 15px;
+      cursor: pointer;
+      background-color: #2b2b2b;
+      border: 2px solid white;
+      color: white;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    #game-hud button:hover {
+      background-color: #0060ff;
+    }
+  </style>
+</head>
+<body>
+  <!-- Title screen overlay -->
+<div id="title-screen" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#001a33;z-index:3000;">
+  <div style="text-align:center;color:white;">
+    <h1 style="font-family:'Press Start 2P',sans-serif;margin-bottom:20px;">8-Bit's Adventure</h1>
+    <button id="play-button" style="font-family:'Press Start 2P',sans-serif;padding:12px 20px;font-size:14px;cursor:pointer;">Play</button>
+  </div>
+</div>
+
+  <canvas id="game" width="640" height="480" tabindex="0"></canvas>
+
+  <div id="game-hud">
+    <div class="hud-section" id="stats">
+      <p id="stats-button">Stats</p>
+      <div id="stats-popup" class="stats-popup" style="display: none;">
+        <h4>Player Stats</h4>
+        <p>Level: <span id="popup-level"></span></p>
+        <p>XP: <span id="popup-xp"></span></p>
+        <p>Damage: <span id="popup-damage"></span></p>
+      </div>
+    </div>
+    <div class="hud-section" id="player-status">
+      <p>Player</p>
+      <div id="hp-bar-container">
+        <div id="hp-bar"></div>
+        <div id="hp-text">8/8</div>
+      </div>
+    </div>
+    <div class="hud-section" id="inventory">
+      <p id="inventory-button">Inventory</p>
+  <div id="inventory-popup" class="stats-popup" style="display: none;">
+    <h4>Inventory</h4>
+    <div id="general-inventory-list"></div>
+  </div>
+
+  <div id="battle-overlay">
+    <div id="enemy-display"></div>
+    <div id="player-battle-status"></div>
+    <div id="battle-controls">
+      <button id="attack-button">Attack</button>
+      <button id="special-attack-button-1">Extra Credits (100 STM)</button>
+      <button id="special-attack-button-2">Plasma Blast (200 STM)</button>
+      <button id="inventory-battle-button">Inventory</button>
+    </div>
+    <div id="inventory-battle-popup" class="inventory-popup" style="display: none;">
+      <h4>Inventory</h4>
+      <div id="inventory-list"></div>
+    </div>
+    </div>
+
+<!-- Must start hidden! -->
+<div id="game-over-overlay" style="display: none">
+  <div class="game-over-content">
+    <h1>Game Over</h1>
+    <p>Press 'R' to Restart</p>
+  </div>
+</div>
+
+  </div>
+
+<script>
+console.log('script loaded');
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Focus canvas for keyboard input
+canvas.tabIndex = 0;
+canvas.focus();
+canvas.addEventListener('click', () => canvas.focus());
+
+// Player and game variables
+let isGameOver = false;
+let x = 150, y = 50;
+const speed = 20;
+const imageSize = 60;
+const hitboxWidth = 30;
+const hitboxHeight = 30;
+const hitboxOffsetX = (imageSize - hitboxWidth) / 2;
+const hitboxOffsetY = (imageSize - hitboxHeight) / 2;
+const useImage = true;
+const img = new Image();
+img.src = '8bit.png';
+
+const hpBar = document.getElementById('hp-bar');
+const hpText = document.getElementById('hp-text');
+
+let selectedEnemyIndex = 0;
+let isPowered = false;
+
+const zoneSprites = {
+  fail: new Image (),
+  robot: new Image(),
+  bossrobot: new Image()
+};
+zoneSprites.fail.src = 'fail.png';
+zoneSprites.bossrobot.src = 'bossrobot.png';
+zoneSprites.robot.src = 'robot.png';
+
+
+let tempText = "";
+let tempTextTimeout = null;
+let defeatedZone = null;
+let enemyAttackIntervalId = null;
+const ENEMY_ATTACK_DELAY = 2000;
+let staminaRegenIntervalId = null;
+let inventory = new Map();
+let extraLifeTimerId = null;
+
+// Initialize inventory with items
+inventory.set("bandaid", 1);
+inventory.set("emp_grenade", 1);
+inventory.set("poison_vial", 1);
+inventory.set("extra_life", 1);
+inventory.set("hammer", 0);
+
+let playerStats = {
+  level: 1,
+  currentHp: 8,
+  maxHp: 8,
+  damage: 2,
+  xp: 0,
+  xpToNextLevel: 10,
+  currentStamina: 50,
+  maxStamina: 200,
+};
+
+let inBattle = false;
+
+const enemyTypes = {
+  Dummy: { name: "Dummy", maxHp: 12, damage: 1, xpReward: 3, behavior: "normalAttack" },
+  Botling: { name: "Botling", maxHp: 10, damage: 1, xpReward: 2, behavior: "normalAttack" },
+  Sniperbot: { name: "Sniper", maxHp: 20, damage: 1, xpReward: 5, behavior: "sniperAttack" },
+  Puncherbot: { name: "Puncher", maxHp: 36, damage: 1, xpReward: 5, behavior: "normalAttack" },
+  Mousebot: { name: "Quickbot", maxHp: 30, damage: 2, xpReward: 5, behavior: "normalAttack" },
+  BossBot: { name: "BossRobot", maxHp: 100, damage: 4, xpReward: 50, isBoss: true, behavior: "bossBehavior", defaultResistances: {stun: true, poison:true }},
+  Summoner: { name: "Factory", maxHp: 80, damage: 0, xpReward: 20, behavior: "summonerBehavior" },
+  SecondStageBossStage1: { name: "Stage1 Boss", maxHp: 50, damage: 3, xpReward: 30, behavior: "secondStageBossBehavior", secondStageType: "SecondStageBossStage2" },
+  SecondStageBossStage2: { name: "Stage2 Boss", maxHp: 80, damage: 6, xpReward: 50, behavior: "normalAttack" },
+  Healer: { name: "Barbot", maxHp: 35, damage: 1, xpReward: 15, behavior: "healerBehavior" }
+};
+
+const levels = [
+  {
+    bgSrc: "arcadebg.png",
+    walls: [
+      { x: 0, y: 0, width: 640, height: 20 },
+      { x: 0, y: 460, width: 640, height: 20 },
+      { x: 290, y: 150, width: 32, height: 200 },
+      { x: 290, y: 150, width: 220, height: 20 },
+      { x: 500, y: 150, width: 20, height: 200 },
+      { x: 0, y: 0, width: 20, height: 480 },
+      { x: 290, y: 350, width: 85, height: 15 },
+      { x: 450, y: 350, width: 50, height: 15 },
+    ],
+    doors: [
+      { x: 375, y: 340, width: 85, height: 10, destLevel: 1, destX: 300, destY: 375 }
+    ],
+    battleZones: [
+      { x: 100, y: 100, width: 50, height: 50, encounter: [{ type: "BossBot" }], sprite: 'bossrobot' },
+      { x: 400, y: 300, width: 70, height: 70, encounter: [{ type: "Sniperbot" }, { type: "Sniperbot" }], sprite: 'fail' }
+],
+    
+    interactables: []
+  },
+  {
+    bgSrc: "arcadeinside.png",
+    walls: [
+      { x: 0, y: 0, width: 640, height: 70 },
+      { x: 0, y: 460, width: 640, height: 20 },
+      { x: 608, y: 0, width: 32, height: 480 },
+      { x: 0, y: 0, width: 50, height: 480 },
+      { x: 300, y: 200, width: 64, height: 64 },
+    ],
+    doors: [
+      { x: 300, y: 450, width: 40, height: 60, destLevel: 0, destX: 400, destY: 400 }
+    ],
+    battleZones: [],
+    interactables: [
+      { name: "power_box", x: 20, y: 260, width: 100, height: 100, action: "power_on" },
+      { name: "arcade_machine", x: 340, y: 80, width: 100, height: 100, action: "start_battle", encounter: [{ type: "Dummy" }] },
+      { name: "big_stone", x: 300, y: 200, width: 64, height: 64, interactRect: { x: 268, y: 200, width: 96, height: 64 }, action: "break", requiredItem: "hammer" },
+      { name: "hammer_pickup", x: 150, y: 300, width: 32, height: 32, action: "pickup", itemName: "hammer"}
+    ]
+  }
+];
+
+let currentLevelIndex = 0;
+let currentLevel = levels[currentLevelIndex];
+
+  const titleScreen = document.getElementById('title-screen');
+const playBtn = document.getElementById('play-button');
+  
+// Preload and spawn background + player at game start
+let bgImg = new Image();
+bgImg.src = 'arcade.png';
+const playerImg = new Image();
+playerImg.src = '8bit.png'; // keep your existing player path
+
+
+function preloadImagesForLevel(levelIndex, onComplete) {
+  const level = levels[levelIndex];
+  // preload bg
+  bgImg = new Image();
+  bgImg.onload = () => {
+    // preload player sprite after bg (optional parallel)
+    if (img && img.complete) return onComplete();
+    img = img || new Image();
+    img.onload = () => onComplete();
+    img.src = img.src || '8bit.png';
+  };
+  bgImg.src = level.bgSrc;
+}
+
+// Play button handler
+playBtn.addEventListener('click', () => {
+  // Hide title screen
+  titleScreen.style.display = 'none';
+
+  // Set starting level and spawn coordinates (adjust if different)
+  currentLevelIndex = 0;
+  currentLevel = levels[currentLevelIndex];
+  x = typeof x === 'number' ? x : 150;
+  y = typeof y === 'number' ? y : 50;
+
+  // Preload necessary images then draw/start
+  preloadImagesForLevel(currentLevelIndex, () => {
+    // show background and player immediately after preload
+    draw();
+    // If your game uses loadLevel to handle more than just draw, call it:
+    // loadLevel(currentLevelIndex, x, y);
+  });
+
+  // If you want an immediate blank/fallback draw while loading, call draw() here too
+  draw();
+});
+
+
+
+const stoneImg = new Image();
+stoneImg.src = "stone.png"; // 64x64 graphic of a rock
+
+const hammerImg = new Image();
+hammerImg.src = "hammer.png";
+
+let activeEnemies = [];
+
+// Utility: text wrapping for canvas
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+  const words = String(text).split(' ');
+  let line = "";
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line ? (line + " " + words[n]) : words[n];
+    const metrics = context.measureText(testLine);
+    const testWidth = metrics.width;
+    if (testWidth > maxWidth && n > 0) {
+      context.fillText(line.trim(), x, y);
+      line = words[n];
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  context.fillText(line.trim(), x, y);
+}
+
+// Show temporary text on screen for 3 seconds
+function showTemporaryText(message) {
+  tempText = message;
+  if (tempTextTimeout) clearTimeout(tempTextTimeout);
+  tempTextTimeout = setTimeout(() => {
+    tempText = "";
+    draw();
+  }, 3000);
+}
+
+// Check if player can go below 1 HP (used with extra life item)
+function canGoBelow1Hp() {
+  return extraLifeTimerId === null;
+}
+
+// Update stamina and clamp between 0 and max
+function updateStamina(newStamina) {
+  if (newStamina < 0) newStamina = 0;
+  if (newStamina > playerStats.maxStamina) newStamina = playerStats.maxStamina;
+  playerStats.currentStamina = newStamina;
+}
+
+// Update HP and UI bar
+function updateHp(newHealth) {
+  if (newHealth < 0) newHealth = 0;
+  if (newHealth > playerStats.maxHp) newHealth = playerStats.maxHp;
+  playerStats.currentHp = newHealth;
+  const newWidth = (playerStats.currentHp / playerStats.maxHp) * 100;
+  hpBar.style.width = `${newWidth}%`;
+  hpText.textContent = `${playerStats.currentHp}/${playerStats.maxHp}`;
+}
+
+// Update stats popup UI
+function updateStatsPopup() {
+  document.getElementById('popup-level').textContent = playerStats.level;
+  document.getElementById('popup-xp').textContent = `${playerStats.xp} / ${playerStats.xpToNextLevel}`;
+  document.getElementById('popup-damage').textContent = playerStats.damage;
+}
+
+// Level up player
+function levelUp() {
+  playerStats.level++;
+  playerStats.xp -= playerStats.xpToNextLevel;
+  playerStats.xpToNextLevel = Math.floor(playerStats.xpToNextLevel * 1.5);
+  playerStats.maxHp += Math.floor(2 + (playerStats.level / 2));
+  playerStats.damage += Math.floor(1 + (playerStats.level / 6));
+  playerStats.currentHp = playerStats.maxHp;
+  updateHp(playerStats.currentHp);
+  updateStatsPopup();
+  showTemporaryText(`Leveled up to ${playerStats.level}!`);
+}
+
+// Gain XP and check level up
+function gainXP(amount) {
+  playerStats.xp += amount;
+  if (playerStats.xp >= playerStats.xpToNextLevel) {
+    levelUp();
+  }
+  updateStatsPopup();
+}
+
+// Remove battle or interactable zone after clearing
+function removeZone(zone) {
+  if (!zone) return;
+  if (zone.type === 'battleZone') {
+    const index = currentLevel.battleZones.indexOf(zone.object);
+    if (index > -1) currentLevel.battleZones.splice(index, 1);
+  } else if (zone.type === 'interactable') {
+    const index = currentLevel.interactables.indexOf(zone.object);
+    if (index > -1) currentLevel.interactables.splice(index, 1);
+  }
+}
+
+// Scale enemy stats with level
+function scaleEnemyStats(baseStats) {
+  return {
+    ...baseStats,
+    maxHp: baseStats.maxHp + Math.floor(currentLevelIndex / 2),
+    damage: baseStats.damage + Math.floor(currentLevelIndex / 3)
+  };
+}
+
+// Inventory popup toggle and drawing
+const inventoryButton = document.getElementById('inventory-button');
+const inventoryPopup = document.getElementById('inventory-popup');
+const statsPopup = document.getElementById('stats-popup');
+const inventoryList = document.getElementById('general-inventory-list');
+
+inventoryButton.addEventListener('click', () => {
+  // don't open during battle or after game over
+  if (inBattle || isGameOver) return;
+
+  // Hide stats popup whenever opening inventory
+  if (statsPopup) statsPopup.style.display = 'none';
+
+  // Detect if it's currently hidden (using computed style)
+  const isHidden = window.getComputedStyle(inventoryPopup).display === 'none';
+  if (isHidden) {
+    drawGeneralInventory();
+    inventoryPopup.style.display = 'block';
+  } else {
+    inventoryPopup.style.display = 'none';
+  }
+});
+
+function drawGeneralInventory() {
+  inventoryList.innerHTML = "";
+  const allZero = inventory.size === 0 || Array.from(inventory.values()).every(q => q === 0);
+  if (allZero) {
+    inventoryList.innerHTML = '<p>Your inventory is empty.</p>';
+    return;
+  }
+  inventory.forEach((quantity, itemName) => {
+    if (quantity > 0) {
+      const p = document.createElement('p');
+      p.textContent = `${itemName.replace(/_/g, ' ')}: ${quantity}`;
+      inventoryList.appendChild(p);
+    }
+  });
+}
+
+// Find battle zone for given player position
+function findBattleZone(checkX, checkY) {
+  const hitboxX = checkX + hitboxOffsetX;
+  const hitboxY = checkY + hitboxOffsetY;
+  if (!currentLevel.battleZones) return null;
+  for (const zone of currentLevel.battleZones) {
+    if (
+      hitboxX < zone.x + zone.width &&
+      hitboxX + hitboxWidth > zone.x &&
+      hitboxY < zone.y + zone.height &&
+      hitboxY + hitboxHeight > zone.y
+    ) {
+      return zone;
+    }
+  }
+  return null;
+}
+
+function showGameOver() {
+  isGameOver = true;
+  if (enemyAttackIntervalId) clearInterval(enemyAttackIntervalId);
+  if (staminaRegenIntervalId) clearInterval(staminaRegenIntervalId);
+  document.getElementById('battle-overlay').style.display = 'none';
+  document.getElementById('game-over-overlay').style.display = 'flex';
+}
+
+// Battle inventory popup draw
+function drawInventoryBattlePopup() {
+  const battleInventoryList = document.getElementById('inventory-list');
+  battleInventoryList.innerHTML = "";
+  const allZero = inventory.size === 0 || Array.from(inventory.values()).every(q => q === 0);
+  if (allZero) {
+    battleInventoryList.innerHTML = '<p>Inventory is empty.</p>';
+    return;
+  }
+  inventory.forEach((quantity, itemName) => {
+    if (quantity > 0) {
+      const itemElement = document.createElement('div');
+      itemElement.className = 'inventory-item';
+      itemElement.innerHTML = `<span>${itemName.replace(/_/g, ' ')} (${quantity})</span>`;
+      const useButton = document.createElement('button');
+      useButton.textContent = 'Use';
+      useButton.className = 'item-use-button';
+      useButton.onclick = () => useItem(itemName);
+      itemElement.appendChild(useButton);
+      battleInventoryList.appendChild(itemElement);
+    }
+  });
+}
+
+// Use inventory item logic
+function useItem(itemName) {
+  if ((inventory.get(itemName) || 0) <= 0) return;
+
+  if (itemName === 'bandaid') {
+    const healAmount = Math.ceil(playerStats.maxHp * 0.33);
+    updateHp(playerStats.currentHp + healAmount);
+    showTemporaryText(`Used a Bandage to heal for ${healAmount} HP!`);
+  } else if (itemName === 'emp_grenade') {
+    activeEnemies.forEach(enemy => {
+      if (!(enemy.resistances && enemy.resistances.stun)) enemy.stunned = true;
+    });
+    setTimeout(() => {
+      activeEnemies.forEach(enemy => {
+        if (!(enemy.resistances && enemy.resistances.stun)) enemy.stunned = false;
+      });
+      drawBattleUI();
+    }, 4000);
+    showTemporaryText('Used an EMP Grenade! Some enemies stunned for 4 seconds!');
+  } else if (itemName === 'poison_vial') {
+    const poisonDamagePerTick = Math.max(1, Math.ceil(5 * playerStats.damage / 100));
+    activeEnemies.forEach(enemy => {
+      if (enemy.resistances && enemy.resistances.poison) return;
+      enemy.poisoned = true;
+      let poisonTimer = 0;
+      const poisonInterval = setInterval(() => {
+        if (!enemy.poisoned || poisonTimer >= 3000) {
+          clearInterval(poisonInterval);
+          enemy.poisoned = false;
+          drawBattleUI();
+          return;
+        }
+        enemy.currentHp -= poisonDamagePerTick;
+        if (enemy.currentHp < 0) enemy.currentHp = 0;
+        drawBattleUI();
+        poisonTimer += 500;
+      }, 500);
+    });
+    showTemporaryText('Used a Poison Vial! Enemies are taking poison damage!');
+  } else if (itemName === 'extra_life') {
+    if (extraLifeTimerId) {
+      clearTimeout(extraLifeTimerId);
+      extraLifeTimerId = null;
+    }
+    showTemporaryText('Used an Extra Life! You have 3 seconds of invincibility!');
+    extraLifeTimerId = setTimeout(() => { extraLifeTimerId = null; }, 3000);
+  } else {
+    showTemporaryText(`Used ${itemName}.`);
+  }
+
+  // decrement inventory and update UI (this line must be inside the useItem function)
+  inventory.set(itemName, Math.max(0, (inventory.get(itemName) || 0) - 1));
+  drawInventoryBattlePopup();
+  drawBattleUI();
+  drawPlayerBattleStatus();
+}
+
+
+
+// Draw battle enemies UI
+function drawBattleUI() {
+  const battleOverlay = document.getElementById('battle-overlay');
+  battleOverlay.style.display = 'flex';
+  const enemyDisplay = document.getElementById('enemy-display');
+  enemyDisplay.innerHTML = "";
+  activeEnemies.forEach((enemy, index) => {
+    const enemyButton = document.createElement('button');
+    enemyButton.innerHTML = `<h3>${enemy.name}</h3><p>HP: ${enemy.currentHp}/${enemy.maxHp}</p>`;
+    enemyButton.className = 'enemy-target';
+    if (enemy.shieldActive) enemyButton.classList.add('shielded');
+    if (enemy.stunned) enemyButton.classList.add('stunned');
+    if (enemy.poisoned) enemyButton.classList.add('poisoned');
+    enemyButton.dataset.enemyIndex = index;
+    enemyDisplay.appendChild(enemyButton);
+    if (index === selectedEnemyIndex) enemyButton.classList.add('selected');
+  });
+}
+
+// Draw player status in battle UI
+function drawPlayerBattleStatus() {
+  const playerBattleStatusDiv = document.getElementById('player-battle-status');
+  playerBattleStatusDiv.innerHTML = "";
+  const playerName = document.createElement('p');
+  playerName.textContent = '8-Bit';
+
+  const hpContainer = document.createElement('div');
+  hpContainer.className = 'hp-bar-container';
+  const innerHpBar = document.createElement('div');
+  innerHpBar.className = 'hp-bar';
+  innerHpBar.style.width = `${(playerStats.currentHp / playerStats.maxHp) * 100}%`;
+  const hpTxt = document.createElement('div');
+  hpTxt.className = 'hp-text';
+  hpTxt.textContent = `${playerStats.currentHp}/${playerStats.maxHp}`;
+  hpContainer.appendChild(innerHpBar);
+  hpContainer.appendChild(hpTxt);
+
+  playerBattleStatusDiv.appendChild(playerName);
+  playerBattleStatusDiv.appendChild(hpContainer);
+
+  const staminaContainer = document.createElement('div');
+  staminaContainer.className = 'hp-bar-container';
+  const staminaBar = document.createElement('div');
+  staminaBar.className = 'hp-bar';
+  staminaBar.style.width = `${(playerStats.currentStamina / playerStats.maxStamina) * 100}%`;
+  staminaBar.style.backgroundColor = "#00FFFF";
+  const staminaText = document.createElement('div');
+  staminaText.className = 'hp-text';
+  staminaText.textContent = `${playerStats.currentStamina}/${playerStats.maxStamina}`;
+  staminaContainer.appendChild(staminaBar);
+  staminaContainer.appendChild(staminaText);
+  playerBattleStatusDiv.appendChild(staminaContainer);
+}
+
+// Enemy behaviors
+function normalAttack(enemy) {
+  playerStats.currentHp -= enemy.damage;
+  showTemporaryText(`${enemy.name} attacks you for ${enemy.damage} damage!`);
+}
+function sniperAttack(enemy) {
+  const isCritical = Math.random() < 0.3;
+  const damage = isCritical ? enemy.damage * 3 : enemy.damage;
+  playerStats.currentHp -= damage;
+  showTemporaryText(`${enemy.name} ${isCritical ? 'snipes critically' : 'attacks'} for ${damage} damage!`);
+}
+function bossBehavior(enemy) {
+  const now = Date.now();
+  if (!enemy.shieldActivatedAt) enemy.shieldActivatedAt = 0;
+  if (!enemy.shieldCooldownEnd) enemy.shieldCooldownEnd = 0;
+
+  if (enemy.shieldActive) {
+    if (now >= enemy.shieldActivatedAt + 2000) {
+      enemy.shieldActive = false;
+      enemy.shieldCooldownEnd = now + 3000;
+      showTemporaryText(`${enemy.name}'s shield fades.`);
+    }
+  } else {
+    if (now >= enemy.shieldCooldownEnd) {
+      enemy.shieldActive = true;
+      enemy.shieldActivatedAt = now;
+      showTemporaryText(`${enemy.name} activates a shield!`);
+    }
+  }
+
+  if (enemy.rocketActive && enemy.rocketTicksLeft > 0) {
+    const rocketTickDamage = Math.ceil(playerStats.maxHp * 0.05);
+    playerStats.currentHp -= rocketTickDamage;
+    enemy.rocketTicksLeft--;
+    showTemporaryText(`${enemy.name}'s rocket hits you for ${rocketTickDamage} damage!`);
+    if (playerStats.currentHp < 0) playerStats.currentHp = 0;
+    if (enemy.rocketTicksLeft === 0) {
+      enemy.rocketActive = false;
+      showTemporaryText("The rocket damage ends.");
+    }
+  }
+
+  if (enemy.shieldActive) return;
+
+  if (!enemy.rocketActive && Math.random() < 0.25) {
+    enemy.rocketActive = true;
+    enemy.rocketTicksLeft = 4;
+    showTemporaryText(`${enemy.name} launches a rocket!`);
+  }
+
+  playerStats.currentHp -= enemy.damage;
+  showTemporaryText(`${enemy.name} attacks you for ${enemy.damage} damage!`);
+}
+  // Summoner: summons 1 minion every 4 seconds
+function summonerBehavior(enemy) {
+  if (!enemy.lastSummonTime) enemy.lastSummonTime = 0;
+  const now = Date.now();
+
+  if (now - enemy.lastSummonTime >= 4000) {
+    enemy.lastSummonTime = now;
+
+    // Summon a minion (Dummy) at the end of activeEnemies list
+    const minionBase = enemyTypes["Botling"];
+    const minionStats = scaleEnemyStats(minionBase);
+    const minion = {
+      type: "Botling",
+      name: minionStats.name,
+      maxHp: minionStats.maxHp,
+      currentHp: minionStats.maxHp,
+      damage: minionStats.damage,
+      xpReward: minionStats.xpReward,
+      shieldActive: false,
+      shieldCooldownEnd: 0,
+      rocketActive: false,
+      rocketTicksLeft: 0,
+      stunned: false,
+      poisoned: false
+    };
+
+    activeEnemies.push(minion);
+    showTemporaryText(`${enemy.name} summons a minion!`);
+    drawBattleUI();
+  }
+
+  // After summoning, attack normally (if not stunned)
+  if (!enemy.stunned) {
+    normalAttack(enemy);
+  }
+}
+
+// Second Stage Boss: on death, transform into second stage
+function secondStageBossBehavior(enemy) {
+  // Normal attack behavior
+  if (!enemy.stunned) {
+    normalAttack(enemy);
+  }
+}
+
+// Override endBattle to check for second stage boss
+function endBattle(outcome) {
+  inBattle = false;
+  document.getElementById('battle-overlay').style.display = 'none';
+
+  if (staminaRegenIntervalId) { clearInterval(staminaRegenIntervalId); staminaRegenIntervalId = null; }
+  if (enemyAttackIntervalId) { clearInterval(enemyAttackIntervalId); enemyAttackIntervalId = null; }
+
+  if (outcome === 'win') {
+    let totalXp = activeEnemies.reduce((sum, enemy) => sum + (enemy.xpReward || 0), 0);
+
+    for (const enemy of activeEnemies) {
+      if (enemy.type === "SecondStageBossStage1" && enemy.currentHp <= 0) {
+        // Remove stage 1 enemy and spawn stage 2 boss
+        activeEnemies = activeEnemies.filter(e => e !== enemy);
+
+        const stage2Base = enemyTypes[enemyTypes.SecondStageBossStage1.secondStageType];
+        const stage2Stats = scaleEnemyStats(stage2Base);
+        const stage2Enemy = {
+          type: "SecondStageBossStage2",
+          name: stage2Stats.name,
+          maxHp: stage2Stats.maxHp,
+          currentHp: stage2Stats.maxHp,
+          damage: stage2Stats.damage,
+          xpReward: stage2Stats.xpReward,
+          shieldActive: false,
+          shieldCooldownEnd: 0,
+          rocketActive: false,
+          rocketTicksLeft: 0,
+          stunned: false,
+          poisoned: false
+        };
+
+        activeEnemies.push(stage2Enemy);
+        showTemporaryText(`${stage2Enemy.name} emerges!`);
+        inBattle = true;
+        enemyAttackIntervalId = setInterval(takeTurn, ENEMY_ATTACK_DELAY);
+        drawBattleUI();
+        drawPlayerBattleStatus();
+        return; // Important to return early so battle continues
+      }
+    }
+
+    if (activeEnemies.length === 0) {
+      gainXP(totalXp);
+      playerStats.currentHp = playerStats.maxHp;
+      updateHp(playerStats.currentHp);
+      if (defeatedZone) removeZone(defeatedZone);
+      activeEnemies = [];
+      defeatedZone = null;
+      draw();
+      document.getElementById('player-battle-status').innerHTML = '';
+      return;
+    }
+  } else if (outcome === 'lose') {
+    showGameOver();
+  }
+}
+
+// Healer: heals all allies every 3 seconds
+function healerBehavior(enemy) {
+  if (!enemy.lastHealTime) enemy.lastHealTime = 0;
+  const now = Date.now();
+
+  if (now - enemy.lastHealTime >= 3000) {
+    enemy.lastHealTime = now;
+
+    activeEnemies.forEach(ally => {
+      if (ally.currentHp < ally.maxHp) {
+        const healAmount = Math.floor(ally.maxHp * 0.15); // Heals 15% max HP
+        ally.currentHp += healAmount;
+        if (ally.currentHp > ally.maxHp) ally.currentHp = ally.maxHp;
+      }
+    });
+    showTemporaryText(`${enemy.name} heals all allies!`);
+    drawBattleUI();
+  }
+
+  if (!enemy.stunned) {
+    normalAttack(enemy);
+  }
+}
+
+// Take enemy turn actions
+function takeTurn() {
+  if (!inBattle) return;
+  activeEnemies.forEach(enemy => {
+    if (!enemy.stunned) {
+      const behavior = enemyTypes[enemy.type]?.behavior || 'normalAttack';
+      if (behavior === 'normalAttack') normalAttack(enemy);
+      else if (behavior === 'sniperAttack') sniperAttack(enemy);
+      else if (behavior === 'bossBehavior') bossBehavior(enemy);
+      else if (behavior === 'summonerBehavior') summonerBehavior(enemy);
+      else if (behavior === 'secondStageBossBehavior') secondStageBossBehavior(enemy);
+      else if (behavior === 'healerBehavior') healerBehavior(enemy);
+    }
+  });
+
+  if (!canGoBelow1Hp() && playerStats.currentHp <= 1) {
+    playerStats.currentHp = 1;
+  }
+  updateHp(playerStats.currentHp);
+  drawBattleUI();
+  drawPlayerBattleStatus();
+  if (playerStats.currentHp <= 0) {
+    endBattle('lose');
+  }
+}
+  function handleEnemyDeath(enemy) {
+  // award XP immediately
+  if (enemy && enemy.xpReward) gainXP(enemy.xpReward);
+
+  // cleanup behavior timers if any
+  if (enemy.behaviorTimers && enemy.behaviorTimers.length) {
+    enemy.behaviorTimers.forEach(id => clearInterval(id));
+    enemy.behaviorTimers = [];
+  }
+  // remove the enemy from activeEnemies
+  const idx = activeEnemies.indexOf(enemy);
+  if (idx > -1) activeEnemies.splice(idx, 1);
+
+  // update UI and check end of battle
+  drawBattleUI();
+  drawPlayerBattleStatus();
+
+  // if no enemies remain, finish the battle
+  if (activeEnemies.length === 0) {
+    endBattle('win');
+  }
+}
+
+// End battle and clean up
+function endBattle(outcome) {
+  inBattle = false;
+  document.getElementById('battle-overlay').style.display = 'none';
+
+  if (staminaRegenIntervalId) { clearInterval(staminaRegenIntervalId); staminaRegenIntervalId = null; }
+  if (enemyAttackIntervalId) { clearInterval(enemyAttackIntervalId); enemyAttackIntervalId = null; }
+
+  if (outcome === 'win') {
+    let totalXp = activeEnemies.reduce((sum, enemy) => sum + (enemy.xpReward || 0), 0);
+    gainXP(totalXp);
+    playerStats.currentHp = playerStats.maxHp;
+    updateHp(playerStats.currentHp);
+    if (defeatedZone) removeZone(defeatedZone);
+  } else if (outcome === 'lose') {
+    showGameOver();
+  }
+
+  activeEnemies = [];
+  defeatedZone = null;
+  draw();
+  const pbs = document.getElementById('player-battle-status');
+  if (pbs) pbs.innerHTML = "";
+}
+
+// Initialize battle from zone or interactable
+function initiateBattle(zoneType, zoneObject) {
+  inBattle = true;
+  defeatedZone = { type: zoneType, object: zoneObject };
+
+  staminaRegenIntervalId = setInterval(() => {
+    updateStamina(playerStats.currentStamina + 1);
+    drawPlayerBattleStatus();
+  }, 100);
+
+  const encounter = (zoneObject && zoneObject.encounter) || [];
+  activeEnemies = encounter.map(enemyData => {
+    const baseStats = enemyTypes[enemyData.type] || {};
+    const scaledStats = scaleEnemyStats(baseStats || {});
+    const enemy = {
+      ...enemyData,
+      type: enemyData.type,
+      name: baseStats ? baseStats.name : enemyData.type,
+      maxHp: scaledStats.maxHp,
+      currentHp: scaledStats.maxHp,
+      damage: scaledStats.damage,
+      xpReward: baseStats ? baseStats.xpReward : 0,
+      shieldActive: false,
+      shieldCooldownEnd: 0,
+      rocketActive: false,
+      rocketTicksLeft: 0,
+      stunned: false,
+      poisoned: false,
+      resistances: enemyData.resistances || (baseStats && baseStats.defaultResistances) || { stun: false, poison: false }
+    };
+
+    if (enemy.isBoss) {
+      enemy.shieldActivatedAt = 0;
+      enemy.shieldCooldownEnd = 0;
+      enemy.rocketActive = false;
+      enemy.rocketTicksLeft = 0;
+    }
+
+    return enemy;
+  });
+
+  selectedEnemyIndex = 0;
+  drawBattleUI();
+  drawPlayerBattleStatus();
+  if (enemyAttackIntervalId) clearInterval(enemyAttackIntervalId);
+  enemyAttackIntervalId = setInterval(takeTurn, ENEMY_ATTACK_DELAY);
+}
+
+// Check collision with interactables
+function checkInteraction(checkX, checkY) {
+  const hitboxX = checkX + hitboxOffsetX;
+  const hitboxY = checkY + hitboxOffsetY;
+  if (!currentLevel.interactables) return null;
+  for (const object of currentLevel.interactables) {
+    const r = object.interactRect || { x: object.x, y: object.y, width: object.width, height: object.height };
+    if (
+      hitboxX < r.x + r.width &&
+      hitboxX + hitboxWidth > r.x &&
+      hitboxY < r.y + r.height &&
+      hitboxY + hitboxHeight > r.y
+    ) return object;
+  }
+  return null;
+}
+
+
+// Handle interaction actions
+function handleInteraction(object) {
+  if (!object) return;
+
+  if (object.name === "power_box") {
+    if (!isPowered) {
+      isPowered = true;
+      showTemporaryText("You pressed something on the box. The lights flicker on.");
+      draw();
+    } else {
+      showTemporaryText("The power is already on.");
+    }
+    return;
+  }
+
+  if (object.name === "arcade_machine") {
+    if (isPowered) {
+      initiateBattle('interactable', object);
+    } else {
+      showTemporaryText("The machine is turned off ...");
+    }
+    return;
+  }
+
+  if (object.action === "break") {
+    const tool = object.requiredItem;
+    if ((inventory.get(tool) || 0) > 0) {
+      currentLevel.interactables = currentLevel.interactables.filter(o => o !== object);
+      currentLevel.walls = currentLevel.walls.filter(w =>
+        !(w.x === object.x && w.y === object.y && w.width === object.width && w.height === object.height)
+      );
+      showTemporaryText("You smashed the stone!");
+    } else {
+      showTemporaryText("You need a hammer to break this rock.");
+    }
+    return;
+  }
+
+  if (object.action === "pickup") {
+    const key = object.itemName;
+    const current = inventory.get(key) || 0;
+    inventory.set(key, current + 1);
+    currentLevel.interactables = currentLevel.interactables.filter(o => o !== object);
+    currentLevel.walls = currentLevel.walls.filter(w =>
+      !(w.x === object.x && w.y === object.y && w.width === object.width && w.height === object.height)
+    );
+    showTemporaryText(`Picked up a ${key}!`);
+    return;
+  }
+}
+
+// Attack buttons event listeners
+document.getElementById('attack-button').addEventListener('click', () => {
+  if (!inBattle || !activeEnemies.length) return;
+  const targetEnemy = activeEnemies[selectedEnemyIndex];
+  if (!targetEnemy) return;
+
+  if (targetEnemy.shieldActive) {
+    showTemporaryText(`${targetEnemy.name}'s shield blocks your attack!`);
+  } else {
+    // Always deal damage regardless of poison status
+    targetEnemy.currentHp -= playerStats.damage;
+    if (targetEnemy.currentHp < 0) targetEnemy.currentHp = 0;
+  }
+  if (targetEnemy.currentHp === 0) {
+    handleEnemyDeath(targetEnemy);
+    // adjust selected index if needed
+    if (selectedEnemyIndex >= activeEnemies.length) selectedEnemyIndex = Math.max(0, activeEnemies.length - 1);
+    return;
+  }
+
+  // Remove dead enemies
+  activeEnemies = activeEnemies.filter(enemy => enemy.currentHp > 0);
+
+  // If no enemies left, end battle
+  if (activeEnemies.length === 0) {
+    endBattle('win');
+    return;
+  }
+
+  drawBattleUI();
+  drawPlayerBattleStatus();
+});
+
+document.getElementById('special-attack-button-1').addEventListener('click', () => {
+  const staminaCost = 100;
+  if (!inBattle || !activeEnemies.length || playerStats.currentStamina < staminaCost) {
+    showTemporaryText("Not enough stamina!");
+    return;
+  }
+  updateStamina(playerStats.currentStamina - staminaCost);
+  const targetEnemy = activeEnemies[selectedEnemyIndex];
+  if (!targetEnemy) return;
+  targetEnemy.currentHp -= (playerStats.damage * 10);
+  if (targetEnemy.currentHp < 0) targetEnemy.currentHp = 0;
+  if (targetEnemy.currentHp === 0) {
+    handleEnemyDeath(targetEnemy);
+    // adjust selected index if needed
+    if (selectedEnemyIndex >= activeEnemies.length) selectedEnemyIndex = Math.max(0, activeEnemies.length - 1);
+    return;
+  }
+  let remainingEnemies = activeEnemies.filter(enemy => enemy.currentHp > 0);
+  if (remainingEnemies.length === 0) {
+    endBattle('win');
+    return;
+  }
+  activeEnemies = remainingEnemies;
+  if (selectedEnemyIndex >= activeEnemies.length) selectedEnemyIndex = 0;
+  drawBattleUI();
+  drawPlayerBattleStatus();
+});
+
+document.getElementById('special-attack-button-2').addEventListener('click', () => {
+  const staminaCost = 200;
+  if (!inBattle || playerStats.currentStamina < staminaCost) {
+    showTemporaryText("Not enough stamina!");
+    return;
+  }
+  updateStamina(playerStats.currentStamina - staminaCost);
+  let remainingEnemies = [];
+  activeEnemies.forEach(enemy => {
+    enemy.currentHp -= (playerStats.damage * 20);
+    if (enemy.currentHp < 0) enemy.currentHp = 0;
+    if (enemy.currentHp > 0) remainingEnemies.push(enemy);
+  });
+
+  if (remainingEnemies.length === 0) {
+    endBattle('win');
+    return;
+  }
+  activeEnemies = remainingEnemies;
+  if (selectedEnemyIndex >= activeEnemies.length) selectedEnemyIndex = 0;
+  drawBattleUI();
+  drawPlayerBattleStatus();
+});
+
+// Handle enemy selection click
+document.getElementById('enemy-display').addEventListener('click', (event) => {
+  const button = event.target.closest('.enemy-target');
+  if (button) {
+    selectedEnemyIndex = parseInt(button.dataset.enemyIndex);
+    drawBattleUI();
+  }
+});
+
+// Stats popup toggle
+document.getElementById('stats-button').addEventListener('click', () => {
+  if (statsPopup.style.display === 'none') {
+    updateStatsPopup();
+    statsPopup.style.display = 'block';
+  } else {
+    statsPopup.style.display = 'none';
+  }
+});
+
+updateHp(playerStats.currentHp);
+
+// Inventory button in battle toggle
+document.getElementById('inventory-battle-button').addEventListener('click', () => {
+  const inventoryPopupBattle = document.getElementById('inventory-battle-popup');
+  if (inventoryPopupBattle.style.display === 'none') {
+    drawInventoryBattlePopup();
+    inventoryPopupBattle.style.display = 'block';
+  } else {
+    inventoryPopupBattle.style.display = 'none';
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (isGameOver && e.key.toLowerCase() === 'r') {
+    location.reload();
+  }
+});
+
+function loadLevel(index, newX = x, newY = y) {
+  currentLevelIndex = index;
+  currentLevel = levels[currentLevelIndex];
+
+  // create a fresh Image so onload fires for the new source
+  bgImg = new Image();
+  bgImg.onload = () => draw();
+  bgImg.src = currentLevel.bgSrc;
+
+  x = newX;
+  y = newY;
+
+  // immediate draw to show player/hud while background loads
+  draw();
+}
+
+
+
+// Wall collision detection
+function isCollidingWithWall(newX, newY) {
+  const newHitboxX = newX + hitboxOffsetX;
+  const newHitboxY = newY + hitboxOffsetY;
+  for (const wall of currentLevel.walls) {
+    if (
+      newHitboxX < wall.x + wall.width &&
+      newHitboxX + hitboxWidth > wall.x &&
+      newHitboxY < wall.y + wall.height &&
+      newHitboxY + hitboxHeight > wall.y
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Door collision detection
+function checkDoorCollision(newX, newY) {
+  const newHitboxX = newX + hitboxOffsetX;
+  const newHitboxY = newY + hitboxOffsetY;
+  for (const door of currentLevel.doors) {
+    if (
+      newHitboxX < door.x + door.width &&
+      newHitboxX + hitboxWidth > door.x &&
+      newHitboxY < door.y + door.height &&
+      newHitboxY + hitboxHeight > door.y
+    ) {
+      return door;
+    }
+  }
+  return null;
+}
+
+// Draw game world and player
+function draw() {
+  if (inBattle || isGameOver) return;
+
+  // clear canvas first
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // draw background only when the image is ready
+  if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    // optional: fill a temporary background so canvas isn't visually stale
+    ctx.fillStyle = "#737373";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.0)";
+  for (const wall of currentLevel.walls) {
+    ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+  }
+  if (currentLevel && currentLevel.battleZones) {
+  currentLevel.battleZones.forEach(zone => {
+    if (!zone.sprite) return;
+    const sprite = zoneSprites[zone.sprite];
+    if (!sprite) return;
+    // determine dest rect: scale down or up as you like
+    const spriteW = Math.min(zone.width, 100); // cap to avoid oversized sprites
+    const spriteH = Math.min(zone.height, 100);
+    const destX = zone.x + (zone.width - spriteW) / 2;
+    const destY = zone.y + (zone.height - spriteH) / 2;
+    if (sprite.complete && sprite.naturalWidth > 0) {
+      ctx.drawImage(sprite, destX, destY, spriteW, spriteH);
+    } else {
+      // fallback visual while sprite loads
+      ctx.fillStyle = 'rgba(255,0,0,0.0)';
+      ctx.fillRect(destX, destY, spriteW, spriteH);
+    }
+  });
+}
+  if (useImage && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, x, y, imageSize, imageSize);
+  } else {
+    ctx.fillStyle = "#0090ff";
+    ctx.fillRect(x, y, imageSize, imageSize);
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.0)";
+  ctx.fillRect(x + hitboxOffsetX, y + hitboxOffsetY, hitboxWidth, hitboxHeight);
+
+  if (tempText) {
+    ctx.fillStyle = "white";
+    ctx.font = "12px 'Press Start 2P'";
+    ctx.textAlign = "center";
+    const maxWidth = canvas.width - 40;
+    const lineHeight = 15;
+    const startY = canvas.height - 100;
+    wrapText(ctx, tempText, canvas.width / 2, startY, maxWidth, lineHeight);
+  }
+
+  currentLevel.interactables.forEach(obj => {
+    if (obj.action === "pickup" && obj.name === "hammer_pickup") {
+      if (hammerImg.complete) ctx.drawImage(hammerImg, obj.x, obj.y, obj.width, obj.height);
+      else { ctx.fillStyle = "#cc9900"; ctx.fillRect(obj.x, obj.y, obj.width, obj.height); }
+    }
+  });
+
+  // draw smashable stones (name matches what you added earlier)
+  currentLevel.interactables.forEach(obj => {
+    if (obj.name === "big_stone" || obj.name === "bigStone") {
+      if (stoneImg.complete) ctx.drawImage(stoneImg, obj.x, obj.y, obj.width, obj.height);
+      else { ctx.fillStyle = "#888"; ctx.fillRect(obj.x, obj.y, obj.width, obj.height); }
+    }
+  });
+}
+
+// Save game state to localStorage
+function saveGame() {
+  const saveData = {
+    playerStats,
+    inventory: Array.from(inventory.entries()),
+    currentLevelIndex,
+    playerPosition: { x, y },
+  };
+  localStorage.setItem('8bitsAdventureSave', JSON.stringify(saveData));
+  showTemporaryText('Game saved!');
+  console.log('Game saved:', saveData);
+}
+
+// Load game state from localStorage
+function loadGame() {
+  const saved = localStorage.getItem('8bitsAdventureSave');
+  if (!saved) {
+    showTemporaryText('No saved game found.');
+    console.log('No saved game found.');
+    return;
+  }
+
+  try {
+    const saveData = JSON.parse(saved);
+    Object.assign(playerStats, saveData.playerStats);
+    inventory.clear();
+    saveData.inventory.forEach(([key, value]) => inventory.set(key, value));
+    loadLevel(saveData.currentLevelIndex, saveData.playerPosition.x, saveData.playerPosition.y);
+    updateHp(playerStats.currentHp);
+    updateStatsPopup();
+    showTemporaryText('Game loaded!');
+    console.log('Game loaded:', saveData);
+  } catch (e) {
+    console.error('Failed to load save:', e);
+    showTemporaryText('Failed to load save.');
+  }
+}
+
+// Create Save and Load buttons after DOM is ready (script at bottom so safe)
+const gameHud = document.getElementById('game-hud');
+if (gameHud) {
+  const saveButton = document.createElement('button');
+  saveButton.textContent = 'Save Game';
+  saveButton.style.fontFamily = "'Press Start 2P', sans-serif";
+  saveButton.style.margin = '0 10px';
+  saveButton.onclick = saveGame;
+  gameHud.appendChild(saveButton);
+
+  const loadButton = document.createElement('button');
+  loadButton.textContent = 'Load Game';
+  loadButton.style.fontFamily = "'Press Start 2P', sans-serif";
+  loadButton.style.margin = '0 10px';
+  loadButton.onclick = loadGame;
+  gameHud.appendChild(loadButton);
+}
+
+// Keyboard movement and interaction
+canvas.addEventListener('keydown', function(e) {
+  if (inBattle || isGameOver) return;
+  let nextX = x, nextY = y;
+  const key = e.key.toLowerCase();
+
+  // movement keys: prevent default for arrows/wasd
+  if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(key)) {
+    e.preventDefault();
+  }
+
+  if (key === 'x') {
+    e.preventDefault();
+    const interactableObject = checkInteraction(x - 16, y) || checkInteraction(x + 16, y) || checkInteraction(x, y - 16) || checkInteraction(x, y + 16) || checkInteraction(x, y);
+    if (interactableObject) handleInteraction(interactableObject);
+    return;
+  }
+
+  if (key === 'arrowleft' || key === 'a') nextX -= speed;
+  if (key === 'arrowright' || key === 'd') nextX += speed;
+  if (key === 'arrowup' || key === 'w') nextY -= speed;
+  if (key === 'arrowdown' || key === 's') nextY += speed;
+
+  if (!isCollidingWithWall(nextX, nextY)) {
+    const door = checkDoorCollision(nextX, nextY);
+    if (door) { loadLevel(door.destLevel, door.destX, door.destY); return; }
+    const battleZone = findBattleZone(nextX, nextY);
+    if (battleZone) { initiateBattle('battleZone', battleZone); return; }
+    x = nextX; y = nextY;
+  }
+  draw();
+});
+  </script>
+</body>
+</html>
