@@ -1,3 +1,159 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Minimal Rhythm Game</title>
+  <style>
+    body { margin:0; background:#111; color:#fff; font-family: sans-serif; }
+    canvas { display:block; margin:0 auto; background:#0b0b0b; }
+    #hud { text-align:center; margin:8px; }
+    .note-hit { color: #7CFC00; }
+  </style>
+</head>
+<body>
+  <div id="hud">Score: <span id="score">0</span> | Combo: <span id="combo">0</span></div>
+  <canvas id="game" width="480" height="640"></canvas>
+  <audio id="music" src="song.mp3" preload="auto"></audio>
 
+<script>
+/* Configuration */
+const KEYS = ['ArrowLeft','ArrowDown','ArrowUp','ArrowRight'];
+const LANE_COUNT = 4;
+const LANE_WIDTH = 100;
+const HIT_LINE_Y = 560;         // y position where hits count
+const NOTE_SPEED = 400;         // pixels per second (tune)
+const JUDGE_WINDOW = 0.15;      // seconds +- for "perfect" tolerance
+
+/* Simple beatmap: [timeSec, laneIndex] */
+const beatmap = [
+  [1.0, 0],[1.3,1],[1.6,2],[1.9,3],
+  [2.5, 0],[2.8,1],[3.1,2],[3.4,3]
+];
+
+/* State */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const audio = document.getElementById('music');
+let startTime = null;
+let score = 0;
+let combo = 0;
+let activeNotes = []; // objects: {time, lane, y, hit:false}
+let scheduled = false;
+
+/* Precompute spawn Y and spawn offset (notes spawn above screen) */
+const SPAWN_Y = -40;
+
+/* Preload notes into activeNotes with computed spawnTime based on distance and speed */
+function scheduleNotes() {
+  activeNotes = beatmap.map(b => {
+    const [time, lane] = b;
+    // Calculate how long it takes a note to travel from spawn to hit line
+    const travelDistance = HIT_LINE_Y - SPAWN_Y;
+    const travelTime = travelDistance / NOTE_SPEED;
+    return {time, lane, y: SPAWN_Y, travelTime, hit:false, judged:false};
+  });
+}
+
+/* Start */
+function startGame() {
+  scheduleNotes();
+  audio.currentTime = 0;
+  audio.play();
+  startTime = performance.now() / 1000;
+  requestAnimationFrame(loop);
+}
+
+/* Input handling */
+window.addEventListener('keydown', (e) => {
+  const now = performance.now() / 1000;
+  if (!startTime) return;
+  const songTime = now - startTime;
+  const idx = KEYS.indexOf(e.key);
+  if (idx === -1) return;
+  // Find nearest unjudged note in that lane within judge window
+  let best = null;
+  let bestDelta = Infinity;
+  for (const n of activeNotes) {
+    if (n.judged || n.lane !== idx) continue;
+    const dt = Math.abs(n.time - songTime);
+    if (dt < bestDelta) { bestDelta = dt; best = n; }
+  }
+  if (best && bestDelta <= JUDGE_WINDOW) {
+    judgeHit(best, bestDelta);
+  } else {
+    // miss tap (optional)
+    combo = 0;
+    updateHUD();
+  }
+});
+
+/* Judging */
+function judgeHit(note, delta) {
+  note.judged = true;
+  note.hit = true;
+  const accuracy = Math.max(0, 1 - (delta / JUDGE_WINDOW)); // 0..1
+  const points = Math.round(100 * accuracy) + Math.min(50, Math.round(50 * accuracy));
+  score += points + combo; // simple combo bonus
+  combo += 1;
+  updateHUD();
+}
+
+/* Update HUD */
+function updateHUD() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('combo').textContent = combo;
+}
+
+/* Main loop */
+function loop() {
+  const now = performance.now() / 1000;
+  const songTime = now - startTime;
+  // Clear
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Draw lanes
+  for (let i=0;i<LANE_COUNT;i++) {
+    const x = i * LANE_WIDTH + 20;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x, 0, LANE_WIDTH-10, canvas.height);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x, HIT_LINE_Y, LANE_WIDTH-10, 6); // hit line
+  }
+
+  // Update and draw notes
+  for (const n of activeNotes) {
+    const tFromSpawn = songTime - (n.time - n.travelTime);
+    if (tFromSpawn < 0) {
+      // not spawned yet
+      continue;
+    }
+    n.y = SPAWN_Y + tFromSpawn * NOTE_SPEED;
+    // Remove notes below screen and judge as miss if unjudged
+    if (!n.judged && n.y > canvas.height + 50) {
+      n.judged = true;
+      combo = 0;
+      updateHUD();
+      continue;
+    }
+    // Draw note
+    const x = n.lane * LANE_WIDTH + 20 + (LANE_WIDTH-10)/2;
+    ctx.beginPath();
+    ctx.fillStyle = n.hit ? '#7CFC00' : '#ff3366';
+    ctx.arc(x, n.y, 18, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Check for end
+  if (!audio.paused) {
+    requestAnimationFrame(loop);
+  }
+}
+
+/* Simple latency calibration: press space when a test sound is at the hit line */
+/* Hook start to click to avoid autoplay blockers */
+document.body.addEventListener('click', () => {
+  if (!startTime) startGame();
+}, {once:true});
+</script>
+</body>
+</html>
