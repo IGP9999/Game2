@@ -10,7 +10,7 @@
       position:fixed; left:16px; top:16px; color:#fff; font-size:18px; z-index:10;
     }
     .popup {
-      position:fixed; left:50%; top:40%; transform:translateX(-50%); padding:12px 18px;
+      position:fixed; left:50%; top:8%; transform:translateX(-50%); padding:12px 18px;
       background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.15);
       color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
       text-align:center;
@@ -61,7 +61,7 @@
     // temporary popup text management
     let popupEl = null;
     let popupTimer = null;
-    function showTemporaryText(text, ms = 900) {
+    function showTemporaryText(text, ms = 90000) {
       if (popupEl) {
         popupEl.remove();
         popupEl = null;
