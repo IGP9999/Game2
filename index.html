@@ -157,20 +157,25 @@
 
     // Note helpers
     function cloneNotes(arr){
-      return arr.map(n => {
-        if(n.type === 'hold'){
-          return {
-            type: 'hold',
-            x: n.x, y: n.y,
-            lengthPx: n.lengthPx || 300,
-            lane: n.lane || null,
-            active: true, headHit: false, held: false, releasedEarly: false, tailConsumed: false
-          };
-        } else {
-          return { type: 'tap', x: n.x, y: n.y, lane: n.lane || null, active: true };
-        }
-      });
+  return arr.map(n => {
+    if(n.type === 'hold'){
+      return {
+        type: 'hold',
+        x: n.x, y: n.y,
+        lengthPx: n.lengthPx || 300,
+        lane: n.lane || null,
+        active: true,
+        headHit: false,
+        held: false,
+        releasedEarly: false,
+        tailConsumed: false,   // important: tail starts unconsumed
+        invalid: false
+      };
+    } else {
+      return { type: 'tap', x: n.x, y: n.y, lane: n.lane || null, active: true, invalid: false };
     }
+  });
+}
     function tailX(n){ return n.x + (n.lengthPx||0); }
 
     // Judgement windows (original directional system)
@@ -202,73 +207,110 @@
 
     // Input handling (per-key, supports simultaneous keys)
     const keyLastTime = {}; const PER_KEY_COOLDOWN_MS = 20;
-    function handleKeydown(e){
-      const code = e.code || e.key; const now = performance.now();
-      if (keyLastTime[code] && now - keyLastTime[code] < PER_KEY_COOLDOWN_MS) return;
-      keyLastTime[code] = now;
-      const lane = LANE_KEY_MAP[code] || null;
+    // keydown: only hit heads (for holds); never allow a keypress to directly judge a tail
+function handleKeydown(e){
+  const code = e.code || e.key;
+  const now = performance.now();
+  if (keyLastTime[code] && now - keyLastTime[code] < PER_KEY_COOLDOWN_MS) return;
+  keyLastTime[code] = now;
+  const lane = LANE_KEY_MAP[code] || null;
 
-      // lane-aware search: prefer same lane; fallback to nearest global if no lane match
-      let candidate = null, bestDist = Infinity;
-      for(let i=0;i<notes.length;i++){
-        const n = notes[i];
-        if(!n || !n.active) continue;
-        if(lane && n.lane && n.lane !== lane) continue;
-        const dist = Math.abs(n.x - JUDGE_X);
-        if(dist < bestDist){ bestDist = dist; candidate = n; }
-      }
-      if(!candidate){
-        // fallback: any lane nearest
-        for(let i=0;i<notes.length;i++){
-          const n = notes[i];
-          if(!n || !n.active) continue;
-          const dist = Math.abs(n.x - JUDGE_X);
-          if(dist < bestDist){ bestDist = dist; candidate = n; }
-        }
-      }
-      if(!candidate) return;
-      if(candidate.x < (JUDGE_X - 25*NOTESPEED) || candidate.x > (JUDGE_X + 25*NOTESPEED)) return;
-
-      if(candidate.type === 'tap'){
-        const j = getJudgement(candidate.x);
-        candidate.active = false;
-        if(j === 'MISS' || j === null){ combo = 0; comboEl.textContent = combo; requestAnimationFrame(()=>showTemporaryText('MISS')); }
-        else { combo += 1; comboEl.textContent = combo; requestAnimationFrame(()=>showTemporaryText(j)); }
-        applyJudgement(j);
-        return;
-      }
-
-      // handle hold head
-      if(candidate.type === 'hold'){
-        if(!candidate.active) return;
-        const j = getJudgement(candidate.x);
-        candidate.active = false; // consume head
-        if(j === 'MISS' || j === null){
-          candidate.headHit = false; candidate.tailConsumed = true; candidate.releasedEarly = true;
-          combo = 0; comboEl.textContent = combo; requestAnimationFrame(()=>showTemporaryText('MISS'));
-          applyJudgement('MISS');
-        } else {
-          candidate.headHit = true; candidate.held = true; candidate.headHitTime = performance.now();
-          laneHoldState[candidate.lane] = candidate;
-          combo += 1; comboEl.textContent = combo; requestAnimationFrame(()=>showTemporaryText(j));
-          applyJudgement(j);
-        }
-      }
+  // Find nearest active *head* or tap in lane (skip hold tails)
+  let candidate = null, bestDist = Infinity;
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    if(!n || n.invalid) continue;
+    // For holds, only consider the head if head hasn't been consumed and head is still active
+    if(n.type === 'hold'){
+      if(!n.active) continue;                  // head already consumed or inactive
+      if(n.tailConsumed) continue;             // whole hold finished
+      if(lane && n.lane && n.lane !== lane) continue;
+      const dist = Math.abs(n.x - JUDGE_X);
+      if(dist < bestDist){ bestDist = dist; candidate = n; }
+      continue;
     }
+    // taps
+    if(!n.active) continue;
+    if(lane && n.lane && n.lane !== lane) continue;
+    const dist = Math.abs(n.x - JUDGE_X);
+    if(dist < bestDist){ bestDist = dist; candidate = n; }
+  }
 
-    function handleKeyup(e){
-      const code = e.code || e.key; const lane = LANE_KEY_MAP[code] || null;
-      if(!lane) return;
-      const heldNote = laneHoldState[lane];
-      if(!heldNote) return;
-      const tX = tailX(heldNote);
-      const tailDist = tX - JUDGE_X;
-      if(tailDist > RELEASE_GRACE_PX){
-        heldNote.held = false; heldNote.releasedEarly = true; laneHoldState[lane] = null;
-      } else {
-        heldNote.held = false; heldNote.releasedEarly = false; laneHoldState[lane] = null;
-      }
+  if(!candidate) return;
+  // active envelope check (same as before)
+  if(candidate.x < (JUDGE_X - 25*NOTESPEED) || candidate.x > (JUDGE_X + 25*NOTESPEED)) return;
+
+  // TAP handling (unchanged)
+  if(candidate.type === 'tap'){
+    const j = getJudgement(candidate.x);
+    candidate.active = false;
+    if(j === 'MISS' || j === null){
+      combo = 0; comboEl.textContent = combo;
+      requestAnimationFrame(()=>showTemporaryText('MISS'));
+    } else {
+      combo += 1; comboEl.textContent = combo;
+      requestAnimationFrame(()=>showTemporaryText(j));
     }
+    applyJudgement(j);
+    return;
+  }
+
+  // HOLD HEAD handling: consume only the head on keydown
+  if(candidate.type === 'hold'){
+    if(!candidate.active) return;            // already consumed head
+    const j = getJudgement(candidate.x);
+    candidate.active = false;                // head consumed regardless
+    if(j === 'MISS' || j === null){
+      // head miss immediately invalidates the tail
+      candidate.headHit = false;
+      candidate.tailConsumed = true;
+      candidate.invalid = true;
+      candidate.releasedEarly = true;
+      combo = 0; comboEl.textContent = combo;
+      requestAnimationFrame(()=>showTemporaryText('MISS'));
+      applyJudgement('MISS');
+    } else {
+      // head hit: mark as held in this lane
+      candidate.headHit = true;
+      candidate.held = true;
+      candidate.headHitTime = performance.now();
+      laneHoldState[candidate.lane] = candidate;
+      combo += 1; comboEl.textContent = combo;
+      requestAnimationFrame(()=>showTemporaryText(j));
+      applyJudgement(j);
+    }
+  }
+}
+
+    // keyup: mark held=false and set releasedEarly if release is too far from tail
+function handleKeyup(e){
+  const code = e.code || e.key;
+  const lane = LANE_KEY_MAP[code] || null;
+  if(!lane) return;
+  const heldNote = laneHoldState[lane];
+  if(!heldNote) return;
+
+  // If tail already consumed, nothing to do
+  if(heldNote.tailConsumed){
+    laneHoldState[lane] = null;
+    return;
+  }
+
+  // Compute tail pixel distance to judge; if it's still far, mark releasedEarly
+  const tX = tailX(heldNote);
+  const tailDist = tX - JUDGE_X;
+  if(tailDist > RELEASE_GRACE_PX){
+    // early release -> tail should be considered will-miss
+    heldNote.held = false;
+    heldNote.releasedEarly = true;
+    laneHoldState[lane] = null;
+  } else {
+    // within grace window: allow completion; mark held false but not releasedEarly
+    heldNote.held = false;
+    heldNote.releasedEarly = false;
+    laneHoldState[lane] = null;
+  }
+}
 
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
@@ -280,44 +322,75 @@
     }
 
     // Update & draw
-    function update(){
-      const leftMissLimit = JUDGE_X - LEFT_MISS_MULT * NOTESPEED;
-      for(let i=0;i<notes.length;i++){
-        const n = notes[i];
-        if(!n) continue;
-        if(n.type === 'tap'){
-          if(!n.active) continue;
-          n.x -= NOTESPEED;
-          if(n.x <= 0 || n.x <= leftMissLimit){
-            n.active = false; n.invalid = true; missCount += 1; forceShowMiss(); updateScoreUI();
-          }
-        } else if(n.type === 'hold'){
-          n.x -= NOTESPEED;
-          if(!n.headHit && n.x <= leftMissLimit){
-            n.active = false; n.tailConsumed = true; n.releasedEarly = true;
-            missCount += 1; forceShowMiss(); updateScoreUI();
-            continue;
-          }
-          if(!n.tailConsumed && tailX(n) <= JUDGE_X){
-            n.tailConsumed = true;
-            if(!n.headHit){
-              applyJudgement('MISS'); combo = 0; comboEl.textContent = combo; missCount += 1;
-              requestAnimationFrame(()=>showTemporaryText('MISS'));
-            } else {
-              if(!n.releasedEarly){
-                applyJudgement('ACE'); combo += 1; comboEl.textContent = combo;
-                requestAnimationFrame(()=>showTemporaryText('ACE'));
-              } else {
-                applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
-                requestAnimationFrame(()=>showTemporaryText('MISS'));
-              }
-            }
-          }
-        }
+    // update: move notes, auto-miss heads, and resolve tails ONLY when tail crosses judge
+function update(){
+  const leftMissLimit = JUDGE_X - LEFT_MISS_MULT * NOTESPEED;
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    if(!n) continue;
+
+    // Move head for both tap and hold
+    if(n.type === 'tap'){
+      if(!n.active) continue;
+      n.x -= NOTESPEED;
+      if(n.x <= 0 || n.x <= leftMissLimit){
+        n.active = false; n.invalid = true; missCount += 1; forceShowMiss(); updateScoreUI();
       }
-      // optional: cleanup consumed notes
-      // notes = notes.filter(n => !(n.type==='tap' && !n.active) && !(n.type==='hold' && n.tailConsumed));
+      continue;
     }
+
+    // HOLD logic
+    if(n.type === 'hold'){
+      // move head
+      n.x -= NOTESPEED;
+
+      // If head was never hit and passes leftMissLimit -> invalidate whole hold immediately
+      if(!n.headHit && n.x <= leftMissLimit){
+        n.active = false;
+        n.tailConsumed = true;      // don't let tail resolve later
+        n.releasedEarly = true;
+        n.invalid = true;
+        missCount += 1;
+        forceShowMiss();
+        updateScoreUI();
+        // also clear laneHoldState if this was being held
+        if(n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+        continue;
+      }
+
+      // Resolve tail only when it reaches or passes the judge line. Do NOT allow key presses to judge the tail directly.
+      if(!n.tailConsumed && tailX(n) <= JUDGE_X){
+        n.tailConsumed = true;
+        // If head was never hit, tail is automatic MISS (and we already prevented later hit)
+        if(!n.headHit){
+          applyJudgement('MISS');
+          combo = 0; comboEl.textContent = combo; missCount += 1;
+          requestAnimationFrame(()=>showTemporaryText('MISS'));
+          if(n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+          continue;
+        }
+
+        // head was hit: success only if player didn't release early
+        if(!n.releasedEarly){
+          // tail counts as ACE per your rule
+          applyJudgement('ACE');
+          combo += 1; comboEl.textContent = combo;
+          requestAnimationFrame(()=>showTemporaryText('ACE'));
+        } else {
+          // released early -> tail MISS
+          applyJudgement('MISS');
+          combo = 0; comboEl.textContent = combo;
+          requestAnimationFrame(()=>showTemporaryText('MISS'));
+        }
+        // clear laneHoldState if still pointing at this note
+        if(n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+      }
+    }
+  }
+
+  // optional cleanup of consumed/invalid notes
+  // notes = notes.filter(n => !(n.type==='tap' && !n.active) && !(n.type==='hold' && n.tailConsumed));
+}
 
     function draw(){
       ctx.clearRect(0,0,WIDTH,HEIGHT);
