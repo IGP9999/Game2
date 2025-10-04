@@ -478,6 +478,20 @@ function update() {
     createSongButtons();
     loop();
     window.startSongById = selectSong;
+const TARGET_FPS = 30;
+const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
+let lastFrameTime = performance.now();
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = now - lastFrameTime;
+  if (dt < FRAME_INTERVAL_MS) return;
+  lastFrameTime += Math.floor(dt / FRAME_INTERVAL_MS) * FRAME_INTERVAL_MS;
+
+lastFrameTime = performance.now();
+loop();
+
   </script>
 </body>
 </html>
