@@ -142,13 +142,13 @@
 
     // Original directional judgement windows (keeps ACE narrow)
     function getJudgement(x) {
-      if (x >= (100 - 25 * NOTESPEED) && x < (100 - 16 * NOTESPEED)) return 'MISS';
-      if (x >= (100 - 16 * NOTESPEED) && x < (100 - 6 * NOTESPEED)) return 'L-GOOD';
-      if (x >= (100 - 6 * NOTESPEED) && x < (100 - 2 * NOTESPEED)) return 'L-PERFECT';
-      if (x >= (100 - 2 * NOTESPEED) && x <= (100 + 2 * NOTESPEED)) return 'ACE';
-      if (x > (100 + 2 * NOTESPEED) && x <= (100 + 6 * NOTESPEED)) return 'E-PERFECT';
-      if (x > (100 + 6 * NOTESPEED) && x <= (100 + 16 * NOTESPEED)) return 'E-GOOD';
-      if (x > (100 + 16 * NOTESPEED) && x <= (100 + 25 * NOTESPEED)) return 'MISS';
+      if (x >= (100 - 25 * NOTESPEED) && x < (100 - 14 * NOTESPEED)) return 'MISS';
+      if (x >= (100 - 14 * NOTESPEED) && x < (100 - 5 * NOTESPEED)) return 'L-GOOD';
+      if (x >= (100 - 5 * NOTESPEED) && x < (100 - 1 * NOTESPEED)) return 'L-PERFECT';
+      if (x >= (100 - 1 * NOTESPEED) && x <= (100 + 1 * NOTESPEED)) return 'ACE';
+      if (x > (100 + 1 * NOTESPEED) && x <= (100 + 5 * NOTESPEED)) return 'E-PERFECT';
+      if (x > (100 + 5 * NOTESPEED) && x <= (100 + 14 * NOTESPEED)) return 'E-GOOD';
+      if (x > (100 + 14 * NOTESPEED) && x <= (100 + 25 * NOTESPEED)) return 'MISS';
       return null;
     }
 
