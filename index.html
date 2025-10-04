@@ -205,13 +205,9 @@
 
     // Combo + input management
     let combo = 0;
-    let lastInputTime = 0;
-    const INPUT_COOLDOWN_MS = 60;
 
     function handleKeydown(e) {
       const now = performance.now();
-      if (now - lastInputTime < INPUT_COOLDOWN_MS) return;
-      lastInputTime = now;
 
       // find nearest active note
       let nearest = null; let bestDist = Infinity;
