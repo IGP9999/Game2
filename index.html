@@ -2,274 +2,159 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Project Rushing</title>
+  <title>Horizontal Rhythm Demo</title>
   <style>
-    body { margin:0; background:#111; color:#fff; font-family: sans-serif; }
-    canvas { display:block; margin:0 auto; background:#0b0b0b; }
-    #hud { text-align:center; margin:8px; }
-    .note-hit { color: #7CFC00; }
+    body { margin:0; background:#000; color:#fff; font-family: Arial, Helvetica, sans-serif; }
+    #hud { padding:8px 12px; }
+    canvas { display:block; margin:0 auto; background:#000; }
+    .small { font-size:14px; color:#bbb; }
   </style>
 </head>
 <body>
-  <div id="hud">Score: <span id="score">0</span> | Combo: <span id="combo">0</span></div>
-  <canvas id="game" width="480" height="640"></canvas>
-  <audio id="music" src="song.mp3" preload="auto"></audio>
+  <div id="hud">
+    <strong>Combo:</strong> <span id="combo">0</span>
+    &nbsp;&nbsp;
+    <span class="small">Click to start. Press any key to hit. Press R to restart.</span>
+  </div>
+  <canvas id="c" width="800" height="600"></canvas>
 
 <script>
-/* Configuration */
-const KEYS = ['ArrowLeft','ArrowDown','ArrowUp','ArrowRight'];
-const LANE_COUNT = 4;
-const LANE_WIDTH = 100;
-const HIT_LINE_Y = 560;         // y position where hits count
-const NOTE_SPEED = 400;         // pixels per second (tune)
-const JUDGE_WINDOW = 0.15;      // seconds +- for "perfect" tolerance
-
-/* Simple beatmap: [timeSec, laneIndex] */
-const beatmap = [
-  [1.0, 0],[1.3,1],[1.6,2],[1.9,3],
-  [2.5, 0],[2.8,1],[3.1,2],[3.4,3]
-];
-
-/* State */
-const canvas = document.getElementById('game');
+const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
-const audio = document.getElementById('music');
-let startTime = null;
-let score = 0;
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+
 let combo = 0;
-let activeNotes = []; // objects: {time, lane, y, hit:false}
-let scheduled = false;
+const comboEl = document.getElementById('combo');
 
-/* Precompute spawn Y and spawn offset (notes spawn above screen) */
-const SPAWN_Y = -40;
+// Judgment line and visuals
+const JUDGE_X = 200;             // vertical line x position
+const CIRCLE_Y = 350;
+const RADIUS = 30;
+const SPEED = 4;                 // pixels per frame (same as Python)
+const SPAWN_XS = [440, 560, 680]; // initial X positions from your demo
 
-/* Preload notes into activeNotes with computed spawnTime based on distance and speed */
-function scheduleNotes() {
-  activeNotes = beatmap.map(b => {
-    const [time, lane] = b;
-    // Calculate how long it takes a note to travel from spawn to hit line
-    const travelDistance = HIT_LINE_Y - SPAWN_Y;
-    const travelTime = travelDistance / NOTE_SPEED;
-    return {time, lane, y: SPAWN_Y, travelTime, hit:false, judged:false};
-  });
+// Note state: each note has x and active flag
+let notes = [];
+function resetNotes() {
+  notes = SPAWN_XS.map(x => ({ x, active: true, judged: false }));
 }
 
-/* Start */
-function startGame() {
-  scheduleNotes();
-  audio.currentTime = 0;
-  audio.play();
-  startTime = performance.now() / 1000;
-  requestAnimationFrame(loop);
+let running = false;
+
+function reset() {
+  resetNotes();
+  combo = 0;
+  updateHUD();
+  running = false;
+  drawScene();
 }
 
-/* Input handling */
-window.addEventListener('keydown', (e) => {
-  const now = performance.now() / 1000;
-  if (!startTime) return;
-  const songTime = now - startTime;
-  const idx = KEYS.indexOf(e.key);
-  if (idx === -1) return;
-  // Find nearest unjudged note in that lane within judge window
-  let best = null;
-  let bestDelta = Infinity;
-  for (const n of activeNotes) {
-    if (n.judged || n.lane !== idx) continue;
-    const dt = Math.abs(n.time - songTime);
-    if (dt < bestDelta) { bestDelta = dt; best = n; }
+function updateHUD() {
+  comboEl.textContent = combo;
+}
+
+function drawScene() {
+  ctx.clearRect(0,0,WIDTH,HEIGHT);
+  // background
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0,0,WIDTH,HEIGHT);
+
+  // judgment line
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(JUDGE_X, HEIGHT);
+  ctx.lineTo(JUDGE_X, 100);
+  ctx.stroke();
+
+  // draw notes
+  for (const n of notes) {
+    if (!n.active) continue;
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(n.x, CIRCLE_Y, RADIUS, 0, Math.PI*2);
+    ctx.stroke();
   }
-  if (best && bestDelta <= JUDGE_WINDOW) {
-    judgeHit(best, bestDelta);
-  } else {
-    // miss tap (optional)
+}
+
+function step() {
+  for (const n of notes) {
+    if (!n.active) continue;
+    if (n.x > 100) {
+      n.x -= SPEED;
+    }
+    if (n.x <= 100) {
+      n.active = false; // passed left edge, disappear
+      n.judged = true;  // treat as judged (miss)
+      combo = 0;
+      updateHUD();
+    }
+  }
+}
+
+function frame() {
+  if (!running) return;
+  step();
+  drawScene();
+  requestAnimationFrame(frame);
+}
+
+// Find nearest unjudged active note (anywhere) and apply Python's ranges based on its x
+function judgeNearest() {
+  // find nearest active and not judged
+  let best = null;
+  let bestDist = Infinity;
+  for (const n of notes) {
+    if (!n.active || n.judged) continue;
+    const dist = Math.abs(n.x - JUDGE_X);
+    if (dist < bestDist) { bestDist = dist; best = n; }
+  }
+  if (!best) return;
+
+  // Only allow hits when note is within the original hittable window 100..300
+  const x = best.x;
+  if (!(100 <= x && x <= 300)) {
+    // outside hittable window -> consume and miss
+    best.active = false;
+    best.judged = true;
     combo = 0;
     updateHUD();
+    return;
   }
-});
 
-/* Judging */
-function judgeHit(note, delta) {
-  note.judged = true;
-  note.hit = true;
-  const accuracy = Math.max(0, 1 - (delta / JUDGE_WINDOW)); // 0..1
-  const points = Math.round(100 * accuracy) + Math.min(50, Math.round(50 * accuracy));
-  score += points + combo; // simple combo bonus
-  combo += 1;
+  // consume on any key press
+  best.active = false;
+  best.judged = true;
+
+  // replicate your Python judgment ranges exactly
+  if (100 <= x && x < 136) {
+    console.log("MISS");
+    combo = 0;
+  } else if (136 <= x && x < 176) {
+    console.log("L-GOOD");
+    combo = combo + 1;
+  } else if (176 <= x && x < 192) {
+    console.log("L-PERFECT");
+    combo = combo + 1;
+  } else if (192 <= x && x <= 208) {
+    console.log("ACE");
+    combo = combo + 1;
+  } else if (208 < x && x <= 224) {
+    console.log("E-PERFECT");
+    combo = combo + 1;
+  } else if (224 < x && x <= 256) {
+    console.log("E-GOOD");
+    combo = combo + 1;
+  } else if (256 < x && x <= 300) {
+    console.log("MISS");
+    combo = 0;
+  } else {
+    combo = 0;
+  }
   updateHUD();
 }
 
-/* Update HUD */
-function updateHUD() {
-  document.getElementById('score').textContent = score;
-  document.getElementById('combo').textContent = combo;
-}
-
-/* Main loop */
-function loop() {
-  const now = performance.now() / 1000;
-  const songTime = now - startTime;
-  // Clear
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // Draw lanes
-  for (let i=0;i<LANE_COUNT;i++) {
-    const x = i * LANE_WIDTH + 20;
-    ctx.fillStyle = '#222';
-    ctx.fillRect(x, 0, LANE_WIDTH-10, canvas.height);
-    ctx.fillStyle = '#444';
-    ctx.fillRect(x, HIT_LINE_Y, LANE_WIDTH-10, 6); // hit line
-  }
-
-  // Update and draw notes
-  for (const n of activeNotes) {
-    const tFromSpawn = songTime - (n.time - n.travelTime);
-    if (tFromSpawn < 0) {
-      // not spawned yet
-      continue;
-    }
-    n.y = SPAWN_Y + tFromSpawn * NOTE_SPEED;
-    // Remove notes below screen and judge as miss if unjudged
-    if (!n.judged && n.y > canvas.height + 50) {
-      n.judged = true;
-      combo = 0;
-      updateHUD();
-      continue;
-    }
-    // Draw note
-    const x = n.lane * LANE_WIDTH + 20 + (LANE_WIDTH-10)/2;
-    ctx.beginPath();
-    ctx.fillStyle = n.hit ? '#7CFC00' : '#ff3366';
-    ctx.arc(x, n.y, 18, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  // Check for end
-  if (!audio.paused) {
-    requestAnimationFrame(loop);
-  }
-}
-
-/* Simple latency calibration: press space when a test sound is at the hit line */
-/* Hook start to click to avoid autoplay blockers */
-document.body.addEventListener('click', () => {
-  if (!startTime) startGame();
-}, {once:true});
-</script>
-</body>
-</html>
-import pygame
-import sys
-pygame.init()
-pygame.font.init()
-white=(255, 255, 255)
-black=(0,0,0)
-width=800
-height=600
-font = pygame.font.SysFont('Arial', 48)
-screen = pygame.display.set_mode((width, height))
-combo=0
-x1=440
-x2=560
-x3=680
-x01=1
-x02=1
-x03=1
-y=350
-y1=450
-running = True
-draw_circle1=True
-draw_circle2=True
-draw_circle3=True
-while running:
-  screen.fill(black)
-  pygame.draw.line(screen, white,[200,600],[200,100],5)
-  if draw_circle1==True:
-     pygame.draw.circle(screen, white, (x1, y), 30, 5)
-  if draw_circle2==True:
-     pygame.draw.circle(screen, white, (x2, y), 30, 5)
-  if draw_circle3==True:
-     pygame.draw.circle(screen, white, (x3, y), 30, 5)
-  if x1>100:
-    x1=x1-4
-  if x2>100:
-    x2=x2-4
-  if x3>100:
-    x3=x3-4
-  if x1<=100:
-    draw_circle1=False
-  if x2<=100:
-    draw_circle2=False
-  if x3<=100:
-    draw_circle3=False
-  for event in pygame.event.get():
-    if event.type == pygame.KEYDOWN:
-      if 100<=x1<=300 and draw_circle1==True:
-        draw_circle1=False
-        if 100<=x1<136:
-          print("MISS")
-          combo=0
-        elif 136<=x1<176:
-          print("L-GOOD")
-          combo=combo+1
-        elif 176<=x1<192:
-          print("L-PERFECT")
-          combo=combo+1
-        elif 192<=x1<=208:
-          print("ACE")
-          combo=combo+1
-        elif 208<x1<=224:
-          print("E-PERFECT")
-          combo=combo+1
-        elif 224<x1<=256:
-          print("E-GOOD")
-          combo=combo+1
-        elif 256<x1<=300:
-          print("MISS")
-          combo=0
-      elif 100<=x2<=300 and draw_circle2==True:
-        draw_circle2=False
-        if 100<=x2<136:
-          print("MISS")
-          combo=0
-        elif 136<=x2<176:
-          print("L-GOOD")
-          combo=combo+1
-        elif 176<=x2<192:
-          print("L-PERFECT")
-          combo=combo+1
-        elif 192<=x2<=208:
-          print("ACE")
-          combo=combo+1
-        elif 208<x2<=224:
-          print("E-Perfect")
-          combo=combo+1
-        elif 224<x2<=256:
-          print("E-GOOD")
-          combo=combo+1
-        elif 256<x1<=300:
-          print("MISS")
-          combo=0
-      elif 100<=x3<=300 and draw_circle3==True:
-        draw_circle3=False
-        if 100<=x3<136:
-          print("MISS")
-          combo=0
-        elif 136<=x3<176:
-          print("L-GOOD")
-          combo=combo+1
-        elif 176<=x3<192:
-          print("L-PERFECT")
-          combo=combo+1
-        elif 192<=x3<=208:
-          print("ACE")
-          combo=combo+1
-        elif 208<x3<=224:
-          print("E-Perfect")
-          combo=combo+1
-        elif 224<x3<=256:
-          print("E-GOOD")
-          combo=combo+1
-        elif 256<x3<=300:
-          print("MISS")
-          combo=0
-  pygame.display.flip()
+// any key -> judge nearest
+window.addEventListener('keydown', (e) =>
