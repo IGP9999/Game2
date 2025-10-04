@@ -17,7 +17,7 @@
     .songItem { margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
     .songItem button { padding:6px 12px; font-size:16px; cursor:pointer; }
     #currentSong { position:fixed; left:20px; top:260px; font-size:18px; color:#ccc; }
-    #scoreUI { position:fixed; left:20px; bottom:20px; color:#fff; z-index:40; font-size:14px; }
+    #scoreUI { position:fixed; left:20px; bottom:20px; color:#fff; z-index:40; font-size:24px; }
     #scoreUI small { color:#7f7; }
   </style>
 </head>
@@ -32,7 +32,7 @@
   <canvas id="game" width="800" height="600"></canvas>
 
   <div id="scoreUI">
-    <div><strong>Score:</strong> <span id="basePercent">0.00%</span> <small>(+<span id="bonusPercent">0.00%</span> bonus)</small></div>
+    <div><strong>Score:</strong> <span id="basePercent">0.00%</span> <small>(+<span id="bonusPercent">0.00%</span>)</small></div>
     <div><strong>Total:</strong> <span id="totalPercent">0.00%</span></div>
     <div style="font-size:13px; color:#aaa;">Notes: <span id="totalNotes">0</span> | ACEs: <span id="aceCount">0</span></div>
   </div>
