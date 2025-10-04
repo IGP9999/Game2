@@ -157,3 +157,119 @@ document.body.addEventListener('click', () => {
 </script>
 </body>
 </html>
+import pygame
+import sys
+pygame.init()
+pygame.font.init()
+white=(255, 255, 255)
+black=(0,0,0)
+width=800
+height=600
+font = pygame.font.SysFont('Arial', 48)
+screen = pygame.display.set_mode((width, height))
+combo=0
+x1=440
+x2=560
+x3=680
+x01=1
+x02=1
+x03=1
+y=350
+y1=450
+running = True
+draw_circle1=True
+draw_circle2=True
+draw_circle3=True
+while running:
+  screen.fill(black)
+  pygame.draw.line(screen, white,[200,600],[200,100],5)
+  if draw_circle1==True:
+     pygame.draw.circle(screen, white, (x1, y), 30, 5)
+  if draw_circle2==True:
+     pygame.draw.circle(screen, white, (x2, y), 30, 5)
+  if draw_circle3==True:
+     pygame.draw.circle(screen, white, (x3, y), 30, 5)
+  if x1>100:
+    x1=x1-4
+  if x2>100:
+    x2=x2-4
+  if x3>100:
+    x3=x3-4
+  if x1<=100:
+    draw_circle1=False
+  if x2<=100:
+    draw_circle2=False
+  if x3<=100:
+    draw_circle3=False
+  for event in pygame.event.get():
+    if event.type == pygame.KEYDOWN:
+      if 100<=x1<=300 and draw_circle1==True:
+        draw_circle1=False
+        if 100<=x1<136:
+          print("MISS")
+          combo=0
+        elif 136<=x1<176:
+          print("L-GOOD")
+          combo=combo+1
+        elif 176<=x1<192:
+          print("L-PERFECT")
+          combo=combo+1
+        elif 192<=x1<=208:
+          print("ACE")
+          combo=combo+1
+        elif 208<x1<=224:
+          print("E-PERFECT")
+          combo=combo+1
+        elif 224<x1<=256:
+          print("E-GOOD")
+          combo=combo+1
+        elif 256<x1<=300:
+          print("MISS")
+          combo=0
+      elif 100<=x2<=300 and draw_circle2==True:
+        draw_circle2=False
+        if 100<=x2<136:
+          print("MISS")
+          combo=0
+        elif 136<=x2<176:
+          print("L-GOOD")
+          combo=combo+1
+        elif 176<=x2<192:
+          print("L-PERFECT")
+          combo=combo+1
+        elif 192<=x2<=208:
+          print("ACE")
+          combo=combo+1
+        elif 208<x2<=224:
+          print("E-Perfect")
+          combo=combo+1
+        elif 224<x2<=256:
+          print("E-GOOD")
+          combo=combo+1
+        elif 256<x1<=300:
+          print("MISS")
+          combo=0
+      elif 100<=x3<=300 and draw_circle3==True:
+        draw_circle3=False
+        if 100<=x3<136:
+          print("MISS")
+          combo=0
+        elif 136<=x3<176:
+          print("L-GOOD")
+          combo=combo+1
+        elif 176<=x3<192:
+          print("L-PERFECT")
+          combo=combo+1
+        elif 192<=x3<=208:
+          print("ACE")
+          combo=combo+1
+        elif 208<x3<=224:
+          print("E-Perfect")
+          combo=combo+1
+        elif 224<x3<=256:
+          print("E-GOOD")
+          combo=combo+1
+        elif 256<x3<=300:
+          print("MISS")
+          combo=0
+  pygame.display.flip()
