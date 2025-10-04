@@ -28,23 +28,23 @@
     // Game constants
     const WIDTH = canvas.width;
     const HEIGHT = canvas.height;
-    const JUDGE_X = 200;           // vertical judgement line x coordinate
+    const JUDGE_X = 100;           // vertical judgement line x coordinate
     const NOTE_Y = 350;           // y position for all notes (matches original)
     const NOTE_RADIUS = 30;
     const NOTE_SPEED = 4;         // pixels per frame (approx same as original)
-    const JUDGE_MIN_X = 100;      // leftmost active region (original used 100..300)
-    const JUDGE_MAX_X = 300;      // rightmost active region
+    const JUDGE_MIN_X = 0;      // leftmost active region (original used 100..300)
+    const JUDGE_MAX_X = 200;      // rightmost active region
 
     // judgement boundaries (mirrors original numeric ranges)
     // We'll keep exact numbers used in original code for consistency
     function getJudgement(x) {
-      if (x >= 100 && x < 136) return 'MISS';
-      if (x >= 136 && x < 176) return 'L-GOOD';
-      if (x >= 176 && x < 192) return 'L-PERFECT';
-      if (x >= 192 && x <= 208) return 'ACE';
-      if (x > 208 && x <= 224) return 'E-PERFECT';
-      if (x > 224 && x <= 256) return 'E-GOOD';
-      if (x > 256 && x <= 300) return 'MISS';
+      if (x >= 0 && x < 36) return 'MISS';
+      if (x >= 36 && x < 76) return 'L-GOOD';
+      if (x >= 76 && x < 92) return 'L-PERFECT';
+      if (x >= 92 && x <= 108) return 'ACE';
+      if (x > 108 && x <= 124) return 'E-PERFECT';
+      if (x > 124 && x <= 156) return 'E-GOOD';
+      if (x > 156 && x <= 200) return 'MISS';
       return null;
     }
 
