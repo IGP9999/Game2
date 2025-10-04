@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Project Rushing - Song Select with Scoring</title>
+  <title>Project Rushing - Song Select with Original Judgement</title>
   <style>
     html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
     canvas { display:block; margin:0 auto; background:#000; }
@@ -53,7 +53,7 @@
     let NOTE_Y2 = 500;
 
     // Runtime variables
-    let NOTESPEED = 6; // pixels per frame (legacy). You can convert to px/sec if desired.
+    let NOTESPEED = 6; // pixels per frame
     let notes = [];    // active notes in play
 
     // Scoring state
@@ -77,7 +77,7 @@
       songname1: {
         id: 'songname1',
         title: 'songname1 - Easy Pulse',
-        audioSrc: '', // e.g. 'assets/song1.mp3'
+        audioSrc: '',
         NOTESPEED: 6,
         notesData: [
           { x: 440, y: NOTE_Y }, { x: 560, y: NOTE_Y }, { x: 680, y: NOTE_Y }, { x: 860, y: NOTE_Y }
@@ -161,27 +161,25 @@
       aceCountEl.textContent = aceCount;
     }
 
-    // Judgement (distance-based, symmetric)
+    // Original directional judgement (keeps ACE window small on purpose)
     function getJudgement(x) {
-      const d = Math.abs(x - JUDGE_X);
-      const aceThresh = 2 * NOTESPEED;
-      const perfThresh = 6 * NOTESPEED;
-      const goodThresh = 16 * NOTESPEED;
-      const missThresh = 25 * NOTESPEED;
-
-      if (d > missThresh) return 'MISS';
-      if (d > goodThresh && d <= missThresh) return 'MISS';
-      if (d > perfThresh && d <= goodThresh) return 'L-GOOD';
-      if (d > aceThresh && d <= perfThresh) return 'L-PERFECT';
-      if (d <= aceThresh) return 'ACE';
-      return 'MISS';
+      // Using the user's original windows relative to 100 and NOTESPEED
+      if (x >= (100 - 25 * NOTESPEED) && x < (100 - 16 * NOTESPEED)) return 'MISS';
+      if (x >= (100 - 16 * NOTESPEED) && x < (100 - 6 * NOTESPEED)) return 'L-GOOD';
+      if (x >= (100 - 6 * NOTESPEED) && x < (100 - 2 * NOTESPEED)) return 'L-PERFECT';
+      if (x >= (100 - 2 * NOTESPEED) && x <= (100 + 2 * NOTESPEED)) return 'ACE';
+      if (x > (100 + 2 * NOTESPEED) && x <= (100 + 6 * NOTESPEED)) return 'E-PERFECT';
+      if (x > (100 + 6 * NOTESPEED) && x <= (100 + 16 * NOTESPEED)) return 'E-GOOD';
+      if (x > (100 + 16 * NOTESPEED) && x <= (100 + 25 * NOTESPEED)) return 'MISS';
+      return null;
     }
 
     // Apply judgement to scoring and combo
     function applyJudgement(judgement) {
-      // Map judgement to point (ACE/PERFECT=1, GOOD=0.5, MISS=0)
+      // Map judgement to point (ACE/PERFECT = 1, GOOD = 0.5, MISS = 0)
       let point = 0;
-      if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT' || judgement === 'L-PERFECT') {
+      // Treat L-PERFECT and E-PERFECT as full points (PERFECT)
+      if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
         point = 1;
       } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
         point = 0.5;
@@ -226,6 +224,7 @@
       notes.forEach(n => {
         if (!n.active) return;
         n.x -= NOTESPEED;
+        // Treat notes that move beyond leftMissLimit as MISS
         if (n.x <= leftMissLimit) {
           n.active = false;
           combo = 0;
@@ -237,7 +236,7 @@
       });
     }
 
-    // Combo + input management
+    // Combo + input management (nearest-note selection, small debounce)
     let combo = 0;
     let lastInputTime = 0;
     const INPUT_COOLDOWN_MS = 60;
@@ -257,15 +256,14 @@
       }
       if (!nearest) return;
 
-      const MAX_HIT_DISTANCE = 25 * NOTESPEED;
-      if (bestDist > MAX_HIT_DISTANCE) {
-        // too far, ignore or optionally show MISS
-        return;
+      const MAX_HIT_DISTANCE = 25 * NOTESPEED; // same envelope your original used
+      if (nearest.x < (JUDGE_X - 25 * NOTESPEED) || nearest.x > (JUDGE_X + 25 * NOTESPEED)) {
+        return; // outside active region
       }
 
       const j = getJudgement(nearest.x);
       nearest.active = false;
-      if (j === 'MISS') {
+      if (j === 'MISS' || j === null) {
         combo = 0;
         showTemporaryText('MISS');
       } else {
@@ -290,7 +288,7 @@
 
     // Helpers: clone notes so replays reset them
     function cloneNotes(arr) {
-      return arr.map(n => ({ x: n.x, y: n.y, active: true, beatTime: n.beatTime || null }));
+      return arr.map(n => ({ x: n.x, y: n.y, active: true }));
     }
 
     // Song selection
