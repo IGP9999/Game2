@@ -1,160 +1,158 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Horizontal Rhythm Demo</title>
+  <title>Vertical Judgement Rhythm Demo</title>
   <style>
-    body { margin:0; background:#000; color:#fff; font-family: Arial, Helvetica, sans-serif; }
-    #hud { padding:8px 12px; }
+    html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
     canvas { display:block; margin:0 auto; background:#000; }
-    .small { font-size:14px; color:#bbb; }
+    #ui {
+      position:fixed; left:16px; top:16px; color:#fff; font-size:18px; z-index:10;
+    }
+    .popup {
+      position:fixed; left:50%; top:40%; transform:translateX(-50%); padding:12px 18px;
+      background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.15);
+      color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20;
+      text-align:center;
+    }
   </style>
 </head>
 <body>
-  <div id="hud">
-    <strong>Combo:</strong> <span id="combo">0</span>
-    &nbsp;&nbsp;
-    <span class="small">Click to start. Press any key to hit. Press R to restart.</span>
-  </div>
-  <canvas id="c" width="800" height="600"></canvas>
+  <div id="ui"><strong>Combo:</strong> <span id="combo">0</span></div>
+  <canvas id="game" width="800" height="600"></canvas>
 
-<script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
 
-let combo = 0;
-const comboEl = document.getElementById('combo');
+    // Game constants
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const JUDGE_X = 200;           // vertical judgement line x coordinate
+    const NOTE_Y = 350;           // y position for all notes (matches original)
+    const NOTE_RADIUS = 30;
+    const NOTE_SPEED = 4;         // pixels per frame (approx same as original)
+    const JUDGE_MIN_X = 100;      // leftmost active region (original used 100..300)
+    const JUDGE_MAX_X = 300;      // rightmost active region
 
-// Judgment line and visuals
-const JUDGE_X = 200;             // vertical line x position
-const CIRCLE_Y = 350;
-const RADIUS = 30;
-const SPEED = 4;                 // pixels per frame (same as Python)
-const SPAWN_XS = [440, 560, 680]; // initial X positions from your demo
-
-// Note state: each note has x and active flag
-let notes = [];
-function resetNotes() {
-  notes = SPAWN_XS.map(x => ({ x, active: true, judged: false }));
-}
-
-let running = false;
-
-function reset() {
-  resetNotes();
-  combo = 0;
-  updateHUD();
-  running = false;
-  drawScene();
-}
-
-function updateHUD() {
-  comboEl.textContent = combo;
-}
-
-function drawScene() {
-  ctx.clearRect(0,0,WIDTH,HEIGHT);
-  // background
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0,0,WIDTH,HEIGHT);
-
-  // judgment line
-  ctx.strokeStyle = 'white';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(JUDGE_X, HEIGHT);
-  ctx.lineTo(JUDGE_X, 100);
-  ctx.stroke();
-
-  // draw notes
-  for (const n of notes) {
-    if (!n.active) continue;
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(n.x, CIRCLE_Y, RADIUS, 0, Math.PI*2);
-    ctx.stroke();
-  }
-}
-
-function step() {
-  for (const n of notes) {
-    if (!n.active) continue;
-    if (n.x > 100) {
-      n.x -= SPEED;
+    // judgement boundaries (mirrors original numeric ranges)
+    // We'll keep exact numbers used in original code for consistency
+    function getJudgement(x) {
+      if (x >= 100 && x < 136) return 'MISS';
+      if (x >= 136 && x < 176) return 'L-GOOD';
+      if (x >= 176 && x < 192) return 'L-PERFECT';
+      if (x >= 192 && x <= 208) return 'ACE';
+      if (x > 208 && x <= 224) return 'E-PERFECT';
+      if (x > 224 && x <= 256) return 'E-GOOD';
+      if (x > 256 && x <= 300) return 'MISS';
+      return null;
     }
-    if (n.x <= 100) {
-      n.active = false; // passed left edge, disappear
-      n.judged = true;  // treat as judged (miss)
-      combo = 0;
-      updateHUD();
+
+    // Note objects (start positions follow original: x1=440, x2=560, x3=680)
+    const notes = [
+      { x: 440, y: NOTE_Y, active: true },
+      { x: 560, y: NOTE_Y, active: true },
+      { x: 680, y: NOTE_Y, active: true }
+    ];
+
+    let combo = 0;
+    const comboEl = document.getElementById('combo');
+
+    // temporary popup text management
+    let popupEl = null;
+    let popupTimer = null;
+    function showTemporaryText(text, ms = 900) {
+      if (popupEl) {
+        popupEl.remove();
+        popupEl = null;
+        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+      }
+      popupEl = document.createElement('div');
+      popupEl.className = 'popup';
+      popupEl.textContent = text;
+      document.body.appendChild(popupEl);
+      popupTimer = setTimeout(() => {
+        if (popupEl) { popupEl.remove(); popupEl = null; }
+        popupTimer = null;
+      }, ms);
     }
-  }
-}
 
-function frame() {
-  if (!running) return;
-  step();
-  drawScene();
-  requestAnimationFrame(frame);
-}
+    // drawing helpers
+    function draw() {
+      ctx.clearRect(0,0,WIDTH,HEIGHT);
 
-// Find nearest unjudged active note (anywhere) and apply Python's ranges based on its x
-function judgeNearest() {
-  // find nearest active and not judged
-  let best = null;
-  let bestDist = Infinity;
-  for (const n of notes) {
-    if (!n.active || n.judged) continue;
-    const dist = Math.abs(n.x - JUDGE_X);
-    if (dist < bestDist) { bestDist = dist; best = n; }
-  }
-  if (!best) return;
+      // judgement line (vertical)
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(JUDGE_X, HEIGHT);
+      ctx.lineTo(JUDGE_X, 100);
+      ctx.stroke();
 
-  // Only allow hits when note is within the original hittable window 100..300
-  const x = best.x;
-  if (!(100 <= x && x <= 300)) {
-    // outside hittable window -> consume and miss
-    best.active = false;
-    best.judged = true;
-    combo = 0;
-    updateHUD();
-    return;
-  }
+      // draw notes
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#fff';
+      notes.forEach(n => {
+        if (n.active) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI*2);
+          ctx.stroke();
+        }
+      });
+    }
 
-  // consume on any key press
-  best.active = false;
-  best.judged = true;
+    // update positions and deactivate when they pass left of judge region (x <= 100)
+    function update() {
+      notes.forEach(n => {
+        if (!n.active) return;
+        if (n.x > JUDGE_MIN_X) {
+          n.x -= NOTE_SPEED;
+        } else {
+          n.active = false;
+        }
+      });
+    }
 
-  // replicate your Python judgment ranges exactly
-  if (100 <= x && x < 136) {
-    console.log("MISS");
-    combo = 0;
-  } else if (136 <= x && x < 176) {
-    console.log("L-GOOD");
-    combo = combo + 1;
-  } else if (176 <= x && x < 192) {
-    console.log("L-PERFECT");
-    combo = combo + 1;
-  } else if (192 <= x && x <= 208) {
-    console.log("ACE");
-    combo = combo + 1;
-  } else if (208 < x && x <= 224) {
-    console.log("E-PERFECT");
-    combo = combo + 1;
-  } else if (224 < x && x <= 256) {
-    console.log("E-GOOD");
-    combo = combo + 1;
-  } else if (256 < x && x <= 300) {
-    console.log("MISS");
-    combo = 0;
-  } else {
-    combo = 0;
-  }
-  updateHUD();
-}
+    // handle key press: same as original, any key down attempts to hit any active note within 100..300
+    function handleKeydown() {
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        if (!n.active) continue;
+        if (n.x >= JUDGE_MIN_X && n.x <= JUDGE_MAX_X) {
+          // decide judgement
+          const j = getJudgement(n.x);
+          n.active = false;
+          if (j === 'MISS') {
+            combo = 0;
+            showTemporaryText('MISS');
+          } else if (j) {
+            combo += 1;
+            showTemporaryText(j);
+          } else {
+            // out of judgement windows but inside 100..300 (shouldn't happen)
+            showTemporaryText('MISS');
+            combo = 0;
+          }
+          comboEl.textContent = combo;
+          // only one note should be judged per keypress (mirrors original branching order)
+          break;
+        }
+      }
+    }
 
-// any key -> judge nearest
-window.addEventListener('keydown', (e) =>
+    // keyboard listener
+    window.addEventListener('keydown', () => handleKeydown());
+
+    // main loop
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // start
+    loop();
+  </script>
+</body>
+</html>
+
