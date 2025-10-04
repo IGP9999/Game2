@@ -176,22 +176,24 @@
 
     // Apply judgement to scoring and combo
     function applyJudgement(judgement) {
-      // Map judgement to point (ACE/PERFECT = 1, GOOD = 0.5, MISS = 0)
-      let point = 0;
-      // Treat L-PERFECT and E-PERFECT as full points (PERFECT)
-      if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
-        point = 1;
-      } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
-        point = 0.5;
-      } else {
-        point = 0;
-      }
+  // Map judgement to point (ACE/PERFECT = 1, GOOD = 0.5, MISS = 0)
+  let point = 0;
+  if (judgement === 'ACE' || judgement === 'L-PERFECT' || judgement === 'E-PERFECT') {
+    point = 1;
+  } else if (judgement === 'L-GOOD' || judgement === 'E-GOOD') {
+    point = 0.5;
+  } else {
+    point = 0;
+  }
 
-      if (point === 1) aceCount += 1;
-      if (point === 0) missCount += 1;
-      basePoints += point;
-      updateScoreUI();
-    }
+  // Only ACE increases the bonus counter
+  if (judgement === 'ACE') aceCount += 1;
+
+  if (point === 0) missCount += 1;
+  basePoints += point;
+  updateScoreUI();
+}
+
 
     // Drawing
     function draw() {
