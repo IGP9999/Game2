@@ -182,16 +182,30 @@
     }
 
     // update notes by current NOTESPEED
-    function update() {
-      notes.forEach(n => {
-        if (!n.active) return;
-        if (n.x > 0) {
-          n.x -= NOTESPEED;
-        } else {
-          n.active = false;
-        }
-      });
+    // update notes by current NOTESPEED and mark too-late notes as MISS
+function update() {
+  const LATE_MISS_X = 100 - 25 * NOTESPEED; // same boundary used by getJudgement for MISS
+  notes.forEach(n => {
+    if (!n.active) return;
+
+    // move note
+    if (n.x > 0) {
+      n.x -= NOTESPEED;
     }
+
+    // If note passes too far left of the judgement line it's a late MISS
+    if (n.active && n.x <= LATE_MISS_X) {
+      n.active = false;
+      combo = 0;
+      comboEl.textContent = combo;
+      showTemporaryText('MISS');
+    }
+
+    // fallback: deactivate if completely off-screen
+    if (n.x < -100) n.active = false;
+  });
+}
+
 
     // combo and UI
     let combo = 0;
