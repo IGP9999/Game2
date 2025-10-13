@@ -65,10 +65,9 @@ const currentSongEl = document.getElementById('currentSong');
 // Lane mapping
 const LANE_KEY_MAP = { KeyD: 'L1', KeyF: 'L2', KeyJ: 'L3', KeyK: 'L4' };
 
-// Hold/timing config
-const RELEASE_GRACE_FRAMES = 2; // tiny grace before tail
-const LEFT_MISS_MULT = 11;
-function releaseGracePx() { return Math.max(1, RELEASE_GRACE_FRAMES * Math.max(1, NOTESPEED)); }
+// Remove grace period entirely
+const RELEASE_GRACE_FRAMES = 0;
+function releaseGracePx() { return 0; }
 
 // Songs (restored), song1 points to local file name
 const songs = {
@@ -124,25 +123,14 @@ function createSongButtons() {
     row.appendChild(label); row.appendChild(btn); songsList.appendChild(row);
   });
 }
-createSongButtons();
 
-// Popup helper
+// Popup
 let popupEl = null, popupTimer = null;
 function showTemporaryText(text, ms = 700) {
-  if (popupEl) {
-    popupEl.remove();
-    popupEl = null;
-    if (popupTimer) clearTimeout(popupTimer);
-    popupTimer = null;
-  }
-  popupEl = document.createElement('div');
-  popupEl.className = 'popup';
-  popupEl.textContent = text;
+  if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); popupTimer = null; }
+  popupEl = document.createElement('div'); popupEl.className = 'popup'; popupEl.textContent = text;
   document.body.appendChild(popupEl);
-  popupTimer = setTimeout(() => {
-    if (popupEl) { popupEl.remove(); popupEl = null; }
-    popupTimer = null;
-  }, ms);
+  popupTimer = setTimeout(() => { if (popupEl) { popupEl.remove(); popupEl = null; } popupTimer = null; }, ms);
 }
 
 // Scoring helpers
@@ -153,6 +141,7 @@ function initScoringForSong(arr) {
   totalNotesEl.textContent = totalNotes;
   aceCountEl.textContent = aceCount;
 }
+
 function updateScoreUI() {
   const basePercent = totalNotes > 0 ? (basePoints / totalNotes) * 100 : 0;
   const bonusPercent = totalNotes > 0 ? (aceCount / totalNotes) * 1 : 0;
@@ -163,19 +152,18 @@ function updateScoreUI() {
   aceCountEl.textContent = aceCount;
 }
 
-// Note helpers
+// Note helpers (holds require real hold)
 function cloneNotes(arr) {
   return arr.map(n => {
     if (n.type === 'hold') {
       return {
         type: 'hold',
         x: n.x, y: n.y,
-        lengthPx: (typeof n.lengthPx === 'number') ? n.lengthPx : 300,
+        lengthPx: n.lengthPx || 300,
         lane: n.lane || null,
         active: true,
         headHit: false,
-        held: false,
-        allowFinish: false,
+        held: false, // true while key physically held
         releasedEarly: false,
         tailConsumed: false,
         invalid: false
@@ -215,13 +203,10 @@ function applyJudgement(j) {
 const laneHoldState = {};
 
 // Input handling (prevent auto-repeat)
-const keyLastTime = {}; // map code -> timestamp
+const keyLastTime = {};
 const PER_KEY_COOLDOWN_MS = 20;
 const keysDown = new Set();
 
-let combo = 0;
-
-// Key handlers
 function handleKeydown(e) {
   const code = e.code || e.key;
   if (e.repeat) return;
@@ -233,7 +218,7 @@ function handleKeydown(e) {
 
   const lane = LANE_KEY_MAP[code] || null;
 
-  // lane-aware candidate search (heads only for holds)
+  // lane-aware candidate search (prefer nearest active head/tap)
   let candidate = null, bestDist = Infinity;
   for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
@@ -269,7 +254,7 @@ function handleKeydown(e) {
     return;
   }
 
-  // hold head
+  // hold head press
   if (candidate.type === 'hold') {
     if (!candidate.active) return;
     const j = getJudgement(candidate.x);
@@ -280,11 +265,14 @@ function handleKeydown(e) {
       combo = 0; comboEl.textContent = combo; requestAnimationFrame(() => showTemporaryText('MISS', 900));
       applyJudgement('MISS');
     } else {
-      candidate.headHit = true; candidate.held = true; candidate.allowFinish = false;
+      // Correct head timing: mark head hit and require physical hold until tail passes JUDGE_X
+      candidate.headHit = true;
+      candidate.held = true; // player is currently holding it
       candidate.releasedEarly = false;
       candidate.headHitTime = performance.now();
       if (candidate.lane) laneHoldState[candidate.lane] = candidate;
-      combo += 1; comboEl.textContent = combo; requestAnimationFrame(() => showTemporaryText(j, 900));
+      combo += 1; comboEl.textContent = combo;
+      requestAnimationFrame(() => showTemporaryText(j, 900));
       applyJudgement(j);
     }
   }
@@ -298,26 +286,17 @@ function handleKeyup(e) {
   const heldNote = laneHoldState[lane];
   if (!heldNote) return;
 
+  // If tail is already consumed, just clear state
   if (heldNote.tailConsumed) { laneHoldState[lane] = null; return; }
 
-  const tX = tailX(heldNote);
-  const tailDist = tX - JUDGE_X;
-
-  // tiny grace allows finish if release is very near tail
-  if (tailDist <= releaseGracePx()) {
-    heldNote.allowFinish = true;
-    heldNote.held = false;
-    heldNote.releasedEarly = false;
-    laneHoldState[lane] = null;
-    return;
-  }
-  // otherwise early release -> miss later
+  // When user releases before tail pass, it's an early release -> mark releasedEarly and clear 'held'
   heldNote.held = false;
-  heldNote.allowFinish = false;
   heldNote.releasedEarly = true;
-  laneHoldState[lane] = null;
+  if (laneHoldState[heldNote.lane] === heldNote) laneHoldState[heldNote.lane] = null;
 }
 
+window.removeEventListener('keydown', handleKeydown);
+window.removeEventListener('keyup', handleKeyup);
 window.addEventListener('keydown', handleKeydown);
 window.addEventListener('keyup', handleKeyup);
 
@@ -327,10 +306,11 @@ function forceShowMiss() {
 }
 
 function update() {
-  const leftMissLimit = JUDGE_X - LEFT_MISS_MULT * NOTESPEED;
+  const leftMissLimit = JUDGE_X - 11 * NOTESPEED; // LEFT_MISS_MULT was 11 originally
   for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
     if (!n) continue;
+
     if (n.type === 'tap') {
       if (!n.active) continue;
       n.x -= NOTESPEED;
@@ -343,15 +323,20 @@ function update() {
     // hold logic
     if (n.type === 'hold') {
       n.x -= NOTESPEED;
+
+      // if head wasn't hit and head passed left miss limit, it's a miss
       if (!n.headHit && n.x <= leftMissLimit) {
         n.active = false; n.tailConsumed = true; n.releasedEarly = true; n.invalid = true;
         missCount += 1; forceShowMiss(); updateScoreUI();
         if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
         continue;
       }
+
+      // When the tail reaches the judge X, resolve the hold
       if (!n.tailConsumed && tailX(n) <= JUDGE_X) {
         n.tailConsumed = true; // resolve once
 
+        // If head was never hit, it's a miss
         if (!n.headHit) {
           applyJudgement('MISS'); combo = 0; comboEl.textContent = combo; missCount += 1;
           requestAnimationFrame(() => showTemporaryText('MISS'));
@@ -359,14 +344,16 @@ function update() {
           continue;
         }
 
-        // success requires headHit AND (still held OR allowFinish)
-        if (n.held === true || n.allowFinish === true) {
+        // Success requires the key still being physically held when tail passes JUDGE_X
+        if (n.held === true) {
           applyJudgement('ACE'); combo += 1; comboEl.textContent = combo;
           requestAnimationFrame(() => showTemporaryText('ACE'));
         } else {
+          // releasedEarly or not held => miss
           applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
           requestAnimationFrame(() => showTemporaryText('MISS'));
         }
+
         if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
       }
     }
@@ -377,17 +364,19 @@ function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(JUDGE_X, HEIGHT); ctx.lineTo(JUDGE_X, 80); ctx.stroke();
+
   notes.forEach(n => {
     if (!n) return;
     if (n.type === 'hold') {
+      // draw hold body
       ctx.strokeStyle = '#4aa'; ctx.lineWidth = 6;
-      const tail = tailX(n);
-      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(tail, n.y); ctx.stroke();
+      ctx.beginPath(); const tail = tailX(n); ctx.moveTo(n.x, n.y); ctx.lineTo(tail, n.y); ctx.stroke();
+
+      // draw head and tail caps (only if not consumed)
       if (!n.tailConsumed) {
         ctx.strokeStyle = n.active ? '#fff' : '#777'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI * 2); ctx.stroke();
-        ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS - 6, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS - 6, 0, Math.PI * 2); ctx.stroke();
       }
     } else {
       if (!n.active) return;
@@ -398,6 +387,7 @@ function draw() {
 }
 
 // Combo, loop (30 FPS cap)
+let combo = 0;
 let running = false;
 const TARGET_FPS = 30;
 const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
@@ -428,6 +418,7 @@ function selectSong(id) {
   currentSongEl.textContent = 'Loaded: ' + s.title;
   showTemporaryText('Loaded ' + s.title, 700);
 }
+createSongButtons();
 window.startSongById = selectSong;
 </script>
 </body>
