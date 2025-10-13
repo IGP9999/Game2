@@ -1,40 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Project Rushing - Hold Notes + Restored Songs</title>
-  <style>
-    html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
-    canvas { display:block; margin:0 auto; background:#000; }
-    #ui { position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index:10; }
-    .popup { position:fixed; left:50%; top:80%; transform:translateX(-50%); padding:12px 18px;
-      background:rgba(255,255,255,0.06); color:#fff; font-size:32px; border-radius:8px; pointer-events:none; z-index:20; text-align:center; }
-    #songSelect { position:fixed; left:20px; top:20px; z-index:30; background:rgba(255,255,255,0.03);
-      padding:12px; border-radius:8px; width:360px; }
-    .songItem { margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
-    .songItem button { padding:6px 12px; font-size:16px; cursor:pointer; }
-    #currentSong { position:fixed; left:20px; top:300px; font-size:18px; color:#ccc; }
-    #scoreUI { position:fixed; left:20px; bottom:20px; color:#fff; z-index:40; font-size:14px; }
-    #scoreUI small { color:#7f7; }
-  </style>
+<meta charset="utf-8" />
+<title>Project Rushing - Hold Notes + Restored Songs (fixed)</title>
+<style>
+html,body { height:100%; margin:0; background:#000; color:#fff; font-family:Arial, sans-serif; }
+canvas { display:block; margin:0 auto; background:#000; }
+#ui { position:fixed; left:625px; top:550px; color:#fff; font-size:40px; z-index: 10; }
+.popup { position:fixed; left:50%; top:80%; transform:translateX(-50%); padding: 12px 18px;
+background:rgba(255,255,255,0.06); color:#fff; font-size:32px; border-radius:8px;
+pointer-events:none; z-index:20; text-align:center; }
+#songSelect { position:fixed; left:20px; top:20px; z-index:30;
+background:rgba(255,255,255,0.03);
+padding:12px; border-radius:8px; width:360px; }
+.songItem { margin-bottom:10px; display:flex; justify-content:space-between;
+align-items:center; }
+.songItem button { padding:6px 12px; font-size:16px; cursor:pointer; }
+#currentSong { position:fixed; left:20px; top:300px; font-size:18px; color:#ccc; }
+#scoreUI { position:fixed; left:20px; bottom:20px; color:#fff; z-index:40; font-size:14px; }
+#scoreUI small { color:#7f7; }
+</style>
 </head>
 <body>
-  <div id="songSelect">
-    <div style="font-weight:bold; font-size:18px; margin-bottom:8px;">Select a song</div>
-    <div id="songsList"></div>
-  </div>
+<div id="songSelect">
+  <div style="font-weight:bold; font-size:18px; margin-bottom:8px;">Select a song</div>
+  <div id="songsList"></div>
+</div>
 
-  <div id="ui"><strong>:</strong> <span id="combo">0</span></div>
-  <div id="currentSong">No song loaded</div>
-  <canvas id="game" width="800" height="600"></canvas>
-
-  <div id="scoreUI">
-    <div><strong>Score:</strong> <span id="basePercent">0.00%</span> <small>(+<span id="bonusPercent">0.00%</span>)</small></div>
-    <div><strong>Total:</strong> <span id="totalPercent">0.00%</span></div>
-    <div style="font-size:13px; color:#aaa;">Notes: <span id="totalNotes">0</span> | ACEs: <span id="aceCount">0</span></div>
-  </div>
-
-  <audio id="music" preload="auto"></audio>
+<div id="ui"><strong> : </strong> <span id="combo">0</span></div>
+<div id="currentSong">No song loaded</div>
+<canvas id="game" width="800" height="600"></canvas>
+<div id="scoreUI">
+  <div><strong>Score : </strong> <span id="basePercent">0.00%</span> <small>(+<span id="bonusPercent">0.00%</span>)</small></div>
+  <div><strong>Total : </strong> <span id="totalPercent">0.00%</span></div>
+  <div style="font-size:13px; color:#aaa;">Notes: <span id="totalNotes">0</span> | ACEs: <span id="aceCount">0</span></div>
+</div>
+<audio id="music" preload="auto"></audio>
 
 <script>
 // Canvas + constants
@@ -44,7 +45,6 @@ const WIDTH = canvas.width, HEIGHT = canvas.height;
 const JUDGE_X = 100;
 const NOTE_RADIUS = 18;
 let NOTE_Y = 350, NOTE_Y2 = 500;
-
 // Runtime
 let NOTESPEED = 10; // px/frame default; overridden per-song
 let notes = []; // array of note objects (tap or hold)
@@ -67,7 +67,7 @@ const LANE_KEY_MAP = { KeyD: 'L1', KeyF: 'L2', KeyJ: 'L3', KeyK: 'L4' };
 
 // Hold/timing config
 const RELEASE_GRACE_FRAMES = 2; // tiny grace before tail
-const LEFT_MISS_MULT = 11;      // left miss threshold multiplier
+const LEFT_MISS_MULT = 11;
 function releaseGracePx() { return Math.max(1, RELEASE_GRACE_FRAMES * Math.max(1, NOTESPEED)); }
 
 // Songs (restored), song1 points to local file name
@@ -114,11 +114,6 @@ const songs = {
   }
 };
 
-// Expose per-song constants (optional)
-const song1NOTESPEED = songs.song1.NOTESPEED, song1notes = songs.song1.notesData;
-const song2NOTESPEED = songs.song2.NOTESPEED, song2notes = songs.song2.notesData;
-const song3NOTESPEED = songs.song3.NOTESPEED, song3notes = songs.song3.notesData;
-
 // Build UI
 const songsList = document.getElementById('songsList');
 function createSongButtons() {
@@ -129,14 +124,25 @@ function createSongButtons() {
     row.appendChild(label); row.appendChild(btn); songsList.appendChild(row);
   });
 }
+createSongButtons();
 
-// Popup
+// Popup helper
 let popupEl = null, popupTimer = null;
 function showTemporaryText(text, ms = 700) {
-  if (popupEl) { popupEl.remove(); popupEl = null; if (popupTimer) clearTimeout(popupTimer); popupTimer = null; }
-  popupEl = document.createElement('div'); popupEl.className = 'popup'; popupEl.textContent = text;
+  if (popupEl) {
+    popupEl.remove();
+    popupEl = null;
+    if (popupTimer) clearTimeout(popupTimer);
+    popupTimer = null;
+  }
+  popupEl = document.createElement('div');
+  popupEl.className = 'popup';
+  popupEl.textContent = text;
   document.body.appendChild(popupEl);
-  popupTimer = setTimeout(() => { if (popupEl) { popupEl.remove(); popupEl = null; } popupTimer = null; }, ms);
+  popupTimer = setTimeout(() => {
+    if (popupEl) { popupEl.remove(); popupEl = null; }
+    popupTimer = null;
+  }, ms);
 }
 
 // Scoring helpers
@@ -144,7 +150,8 @@ function initScoringForSong(arr) {
   totalNotes = arr.reduce((acc, n) => acc + (n.type === 'hold' ? 2 : 1), 0);
   basePoints = 0; aceCount = 0; missCount = 0;
   updateScoreUI();
-  totalNotesEl.textContent = totalNotes; aceCountEl.textContent = aceCount;
+  totalNotesEl.textContent = totalNotes;
+  aceCountEl.textContent = aceCount;
 }
 function updateScoreUI() {
   const basePercent = totalNotes > 0 ? (basePoints / totalNotes) * 100 : 0;
@@ -156,19 +163,19 @@ function updateScoreUI() {
   aceCountEl.textContent = aceCount;
 }
 
-// Note helpers (holds require real hold)
+// Note helpers
 function cloneNotes(arr) {
   return arr.map(n => {
     if (n.type === 'hold') {
       return {
         type: 'hold',
         x: n.x, y: n.y,
-        lengthPx: n.lengthPx || 300,
+        lengthPx: (typeof n.lengthPx === 'number') ? n.lengthPx : 300,
         lane: n.lane || null,
         active: true,
         headHit: false,
-        held: false,        // true while key physically held
-        allowFinish: false, // tiny grace allows finish if released very near tail
+        held: false,
+        allowFinish: false,
         releasedEarly: false,
         tailConsumed: false,
         invalid: false
@@ -208,10 +215,13 @@ function applyJudgement(j) {
 const laneHoldState = {};
 
 // Input handling (prevent auto-repeat)
-const keyLastTime = {};
+const keyLastTime = {}; // map code -> timestamp
 const PER_KEY_COOLDOWN_MS = 20;
 const keysDown = new Set();
 
+let combo = 0;
+
+// Key handlers
 function handleKeydown(e) {
   const code = e.code || e.key;
   if (e.repeat) return;
@@ -265,13 +275,15 @@ function handleKeydown(e) {
     const j = getJudgement(candidate.x);
     candidate.active = false; // consume head
     if (j === 'MISS' || j === null) {
-      candidate.headHit = false; candidate.tailConsumed = true; candidate.releasedEarly = true; candidate.invalid = true;
+      candidate.headHit = false; candidate.tailConsumed = true; candidate.releasedEarly = true;
+      candidate.invalid = true;
       combo = 0; comboEl.textContent = combo; requestAnimationFrame(() => showTemporaryText('MISS', 900));
       applyJudgement('MISS');
     } else {
-      candidate.headHit = true; candidate.held = true; candidate.allowFinish = false; candidate.releasedEarly = false;
+      candidate.headHit = true; candidate.held = true; candidate.allowFinish = false;
+      candidate.releasedEarly = false;
       candidate.headHitTime = performance.now();
-      laneHoldState[candidate.lane] = candidate;
+      if (candidate.lane) laneHoldState[candidate.lane] = candidate;
       combo += 1; comboEl.textContent = combo; requestAnimationFrame(() => showTemporaryText(j, 900));
       applyJudgement(j);
     }
@@ -281,7 +293,6 @@ function handleKeydown(e) {
 function handleKeyup(e) {
   const code = e.code || e.key;
   if (keysDown.has(code)) keysDown.delete(code);
-
   const lane = LANE_KEY_MAP[code] || null;
   if (!lane) return;
   const heldNote = laneHoldState[lane];
@@ -300,7 +311,6 @@ function handleKeyup(e) {
     laneHoldState[lane] = null;
     return;
   }
-
   // otherwise early release -> miss later
   heldNote.held = false;
   heldNote.allowFinish = false;
@@ -308,8 +318,6 @@ function handleKeyup(e) {
   laneHoldState[lane] = null;
 }
 
-window.removeEventListener('keydown', handleKeydown);
-window.removeEventListener('keyup', handleKeyup);
 window.addEventListener('keydown', handleKeydown);
 window.addEventListener('keyup', handleKeyup);
 
@@ -323,7 +331,6 @@ function update() {
   for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
     if (!n) continue;
-
     if (n.type === 'tap') {
       if (!n.active) continue;
       n.x -= NOTESPEED;
@@ -336,14 +343,12 @@ function update() {
     // hold logic
     if (n.type === 'hold') {
       n.x -= NOTESPEED;
-
       if (!n.headHit && n.x <= leftMissLimit) {
         n.active = false; n.tailConsumed = true; n.releasedEarly = true; n.invalid = true;
         missCount += 1; forceShowMiss(); updateScoreUI();
         if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
         continue;
       }
-
       if (!n.tailConsumed && tailX(n) <= JUDGE_X) {
         n.tailConsumed = true; // resolve once
 
@@ -362,41 +367,37 @@ function update() {
           applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
           requestAnimationFrame(() => showTemporaryText('MISS'));
         }
-
         if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
       }
     }
   }
-
-  // optional cleanup:
-  // notes = notes.filter(n => !(n.type === 'tap' && !n.active) && !(n.type === 'hold' && n.tailConsumed));
 }
 
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(JUDGE_X, HEIGHT); ctx.lineTo(JUDGE_X, 80); ctx.stroke();
-
   notes.forEach(n => {
     if (!n) return;
     if (n.type === 'hold') {
       ctx.strokeStyle = '#4aa'; ctx.lineWidth = 6;
-      ctx.beginPath(); const tail = tailX(n); ctx.moveTo(n.x, n.y); ctx.lineTo(tail, n.y); ctx.stroke();
+      const tail = tailX(n);
+      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(tail, n.y); ctx.stroke();
       if (!n.tailConsumed) {
         ctx.strokeStyle = n.active ? '#fff' : '#777'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI * 2); ctx.stroke();
-        ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS - 6, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS - 6, 0, Math.PI * 2);
+        ctx.stroke();
       }
     } else {
       if (!n.active) return;
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI * 2); ctx.stroke();
     }
   });
 }
 
 // Combo, loop (30 FPS cap)
-let combo = 0;
 let running = false;
 const TARGET_FPS = 30;
 const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
@@ -416,18 +417,17 @@ loop();
 function selectSong(id) {
   const s = songs[id]; if (!s) return;
   musicEl.pause(); musicEl.currentTime = 0;
+
   NOTESPEED = s.NOTESPEED;
   notes = cloneNotes(s.notesData);
   initScoringForSong(notes);
   if (s.audioSrc) { musicEl.src = s.audioSrc; musicEl.play().catch(() => showTemporaryText('Click to enable audio')); }
-  else musicEl.src = '';
+  else musicEl.src = "";
   combo = 0; comboEl.textContent = combo;
   running = true;
   currentSongEl.textContent = 'Loaded: ' + s.title;
   showTemporaryText('Loaded ' + s.title, 700);
 }
-
-createSongButtons();
 window.startSongById = selectSong;
 </script>
 </body>
