@@ -286,6 +286,7 @@ function handleKeyup(e){
 heldNote.held = false;
 heldNote.releasedEarly = true;
 if (laneHoldState[heldNote.lane] === heldNote) laneHoldState[heldNote.lane] = null;
+}
   
 window.removeEventListener('keydown', handleKeydown);
 window.removeEventListener('keyup', handleKeyup);
