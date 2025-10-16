@@ -240,6 +240,10 @@ function handleKeydown(e){
   }
 
   // HOLD head handling
+  if (candidate.type === 'hold') {
+  if (candidate.invalid) return;  // ignore invalid (missed) hold notes
+  // existing hold note head press logic...
+}
   if (candidate.type === 'hold'){
     if (candidate.headConsumed){
       candidate.held = true;
@@ -274,16 +278,15 @@ function handleKeyup(e){
   const heldNote = laneHoldState[lane];
   if (!heldNote) return;
 
-  if (heldNote.tailConsumed){
-    if (laneHoldState[heldNote.lane] === heldNote) laneHoldState[heldNote.lane] = null;
-    return;
-  }
-
-  heldNote.held = false;
-  heldNote.releasedEarly = true;
+ if (heldNote.tailConsumed){
   if (laneHoldState[heldNote.lane] === heldNote) laneHoldState[heldNote.lane] = null;
+  return;
 }
 
+heldNote.held = false;
+heldNote.releasedEarly = true;
+if (laneHoldState[heldNote.lane] === heldNote) laneHoldState[heldNote.lane] = null;
+  
 window.removeEventListener('keydown', handleKeydown);
 window.removeEventListener('keyup', handleKeyup);
 window.addEventListener('keydown', handleKeydown);
@@ -329,27 +332,31 @@ function update(){
       }
 
       if (!n.tailConsumed && tailX(n) <= JUDGE_X){
-        n.tailConsumed = true;
+  n.tailConsumed = true;
 
-        if (!n.headConsumed){
-          applyJudgement('MISS'); combo = 0; comboEl.textContent = combo; missCount++;
-          requestAnimationFrame(()=>showTemporaryText('MISS'));
-          if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
-          continue;
-        }
-
-        if (n.held === true){
-          applyJudgement('ACE'); combo += 1; comboEl.textContent = combo;
-          requestAnimationFrame(()=>showTemporaryText('ACE',900));
-        } else {
-          applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
-          requestAnimationFrame(()=>showTemporaryText('MISS',900));
-        }
-
-        if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
-      }
-    }
+  if (!n.headConsumed){
+    applyJudgement('MISS');
+    combo = 0; comboEl.textContent = combo;
+    missCount++;
+    requestAnimationFrame(() => showTemporaryText('MISS'));
+    if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+    n.active = false;
+    n.invalid = true;
+    continue;
   }
+
+  if (n.held === true){
+    applyJudgement('ACE');
+    combo += 1; comboEl.textContent = combo;
+    requestAnimationFrame(() => showTemporaryText('ACE', 900));
+  } else {
+    applyJudgement('MISS');
+    combo = 0; comboEl.textContent = combo;
+    requestAnimationFrame(() => showTemporaryText('MISS', 900));
+  }
+
+  if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+  n.active = false;
 }
 
 function draw(){
