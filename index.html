@@ -322,29 +322,31 @@ function update(){
         continue;
       }
 
-      // when tail crosses judge, resolve
       if (!n.tailConsumed && tailX(n) <= JUDGE_X){
-        n.tailConsumed = true;
+  n.tailConsumed = true;
 
-        // if head was never consumed -> miss
-        if (!n.headConsumed){
-          applyJudgement('MISS'); combo = 0; comboEl.textContent = combo; missCount++;
-          requestAnimationFrame(()=>showTemporaryText('MISS'));
-          if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
-          continue;
-        }
+  // if head was never consumed -> miss
+  if (!n.headConsumed){
+    applyJudgement('MISS'); combo = 0; comboEl.textContent = combo; missCount++;
+    requestAnimationFrame(()=>showTemporaryText('MISS'));
+    if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+    n.active = false;
+    n.invalid = true;
+    continue;
+  }
 
-        // SUCCESS only if the key is STILL physically held when tail passes
-        if (n.held === true){
-          applyJudgement('ACE'); combo += 1; comboEl.textContent = combo;
-          requestAnimationFrame(()=>showTemporaryText('ACE',900));
-        } else {
-          applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
-          requestAnimationFrame(()=>showTemporaryText('MISS',900));
-        }
+  // SUCCESS only if the key is STILL physically held when tail passes
+  if (n.held === true){
+    applyJudgement('ACE'); combo += 1; comboEl.textContent = combo;
+    requestAnimationFrame(()=>showTemporaryText('ACE',900));
+  } else {
+    applyJudgement('MISS'); combo = 0; comboEl.textContent = combo;
+    requestAnimationFrame(()=>showTemporaryText('MISS',900));
+  }
 
-        if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
-      }
+  if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
+  n.active = false;
+}
     }
   }
 }
@@ -414,7 +416,10 @@ function selectSong(id){
   NOTESPEED = s.NOTESPEED;
   notes = cloneNotes(s.notesData);
   initScoringForSong(notes);
-  if (s.audioSrc) musicEl.src = s.audioSrc;
+if (s.audioSrc){
+  musicEl.src = s.audioSrc;
+  musicEl.load();
+  musicEl.play().catch(e => console.warn("Audio play failed:", e));
   combo = 0; comboEl.textContent = combo;
   running = true;
   currentSongEl.textContent = 'Loaded: ' + s.title;
