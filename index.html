@@ -44,7 +44,7 @@ const ctx = canvas.getContext('2d');
 const WIDTH = canvas.width, HEIGHT = canvas.height;
 const JUDGE_X = 100;
 const NOTE_RADIUS = 18;
-let NOTE_Y = 350, NOTE_Y2 = 500;
+let NOTE_Y = 350, NOTE_Y2 = 500, NOTE_Y1=100
 
 let NOTESPEED = 10;
 let notes = [];
@@ -67,16 +67,16 @@ const songs = {
   song1: { id:'song1', title:'World Reset', audioSrc:'WORLD RESET.mp3', NOTESPEED:19.6078431,
     notesData:[
       { type:'tap', x:1680, y:NOTE_Y, lane:'L1' },
-      { type:'tap', x:1680 + 5*19.6078431, y:NOTE_Y, lane:'L1' },
-      { type:'tap', x:1680 + 9*19.6078431, y:NOTE_Y, lane:'L3' },
-      { type:'tap', x:1680 + 13*19.6078431, y:NOTE_Y, lane:'L3' },
+      { type:'tap', x:1680 + 5*19.6078431, y:NOTE_Y1, lane:'L1' },
+      { type:'tap', x:1680 + 9*19.6078431, y:NOTE_Y1, lane:'L3' },
+      { type:'tap', x:1680 + 13*19.6078431, y:NOTE_Y2, lane:'L3' },
       { type:'hold', x:1680 + 18*19.6078431, y:NOTE_Y, lengthPx:5*19.6078431, lane:'L2' },
       { type:'tap', x:1680+27*19.6078431, y:NOTE_Y, lane:'L2' },
-      { type:'tap', x:1680+32*19.6078431, y:NOTE_Y, lane:'L1' },
-      { type:'tap', x:1680+36*19.6078431, y:NOTE_Y, lane:'L3' },
-      { type:'tap', x:1680+41*19.6078431, y:NOTE_Y, lane:'L3' },
-      { type:'tap', x:1680+46*19.6078431, y:NOTE_Y, lane:'L3' },
-      { type:'tap', x:1680+50*19.6078431, y:NOTE_Y, lane:'L3' },
+      { type:'tap', x:1680+32*19.6078431, y:NOTE_Y1, lane:'L1' },
+      { type:'tap', x:1680+36*19.6078431, y:NOTE_Y2, lane:'L3' },
+      { type:'tap', x:1680+41*19.6078431, y:NOTE_Y2, lane:'L3' },
+      { type:'tap', x:1680+46*19.6078431, y:NOTE_Y1, lane:'L1' },
+      { type:'tap', x:1680+50*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'hold', x:1680 + 55*19.6078431, y:NOTE_Y, lengthPx:8*19.6078431, lane:'L1' },
       { type:'hold', x:1680 + 63*19.6078431, y:NOTE_Y, lengthPx:4*19.6078431, lane:'L1' },
       
