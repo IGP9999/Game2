@@ -358,6 +358,9 @@ function update(){
   if (n.lane && laneHoldState[n.lane] === n) laneHoldState[n.lane] = null;
   n.active = false;
 }
+    }
+  }
+  }
 
 function draw(){
   ctx.clearRect(0,0,WIDTH,HEIGHT);
