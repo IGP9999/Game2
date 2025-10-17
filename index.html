@@ -210,24 +210,35 @@ function handleKeydown(e){
   const lane = LANE_KEY_MAP[code] || null;
 
   // find nearest active candidate for this lane
-  let candidate = null, bestDist = Infinity;
-  for (let i=0;i<notes.length;i++){
+  // Prefer unconsumed hold heads first (closest)
+let candidate = null;
+let bestDist = Infinity;
+
+// First pass: closest unconsumed hold head
+for (let i = 0; i < notes.length; i++) {
+  const n = notes[i];
+  if (!n || n.invalid) continue;
+  if (lane && n.lane && n.lane !== lane) continue;
+  if (n.type === 'hold' && n.active && !n.tailConsumed && !n.headConsumed) {
+    const dist = Math.abs(n.x - JUDGE_X);
+    if (dist < bestDist) { bestDist = dist; candidate = n; }
+  }
+}
+
+// Second pass fallback: nearest active (tap or any hold head)
+if (!candidate) {
+  bestDist = Infinity;
+  for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
     if (!n || n.invalid) continue;
     if (lane && n.lane && n.lane !== lane) continue;
-    if (n.type === 'hold'){
-      if (!n.active || n.tailConsumed) continue;
-      const dist = Math.abs(n.x - JUDGE_X);
-      if (dist < bestDist){ bestDist = dist; candidate = n; }
-      continue;
-    }
     if (!n.active) continue;
+    if (n.type === 'hold' && n.tailConsumed) continue;
     const dist = Math.abs(n.x - JUDGE_X);
-    if (dist < bestDist){ bestDist = dist; candidate = n; }
+    if (dist < bestDist) { bestDist = dist; candidate = n; }
   }
+}
 
-  if (!candidate) return;
-  if (candidate.x < (JUDGE_X - 25 * NOTESPEED) || candidate.x > (JUDGE_X + 25 * NOTESPEED)) return;
 
   // TAP
   if (candidate.type === 'tap'){
@@ -245,39 +256,41 @@ function handleKeydown(e){
   }
 
   // HOLD (single unified block)
-  if (candidate.type === 'hold'){
-    if (candidate.invalid) return;
+  // HOLD handling (single guarded block)
+if (candidate.type === 'hold') {
+  if (candidate.invalid) return; // ignore already-invalid holds
 
-    // If head was already consumed, this press can re-establish physical holding (but not re-judge head)
-    if (candidate.headConsumed){
-      if (!candidate.tailConsumed){
-        candidate.holdingBy = code;
-        candidate.held = true;
-        candidate.releasedEarly = false;
-        if (candidate.lane) laneHoldState[candidate.lane] = candidate;
-      }
-      return;
+  // If head already consumed, allow this press to re-establish physical holding for that single note
+  if (candidate.headConsumed) {
+    if (!candidate.tailConsumed) {
+      candidate.holdingBy = code;
+      candidate.held = true;
+      candidate.releasedEarly = false;
+      if (candidate.lane) laneHoldState[candidate.lane] = candidate;
     }
-
-    // Head not yet consumed: judge head for feedback, but do NOT finish the hold here
-    const j = getJudgement(candidate.x);
-    candidate.headConsumed = true;
-    candidate.headHit = (j !== 'MISS' && j !== null);
-    candidate.holdingBy = code;   // bind this physical press to the hold
-    candidate.held = true;
-    candidate.releasedEarly = false;
-    if (candidate.lane) laneHoldState[candidate.lane] = candidate;
-
-    if (!candidate.headHit){
-      combo = 0; comboEl.textContent = combo;
-      requestAnimationFrame(()=>showTemporaryText('MISS',900));
-      applyJudgement('MISS');
-    } else {
-      combo += 1; comboEl.textContent = combo;
-      requestAnimationFrame(()=>showTemporaryText(j,900));
-      applyJudgement(j);
-    }
+    return;
   }
+
+  // Head not consumed: consume head and bind this key to this note only
+  const j = getJudgement(candidate.x);
+  candidate.headConsumed = true;
+  candidate.headHit = (j !== 'MISS' && j !== null);
+  candidate.holdingBy = code; // bind this physical press to THIS note
+  candidate.held = true;
+  candidate.releasedEarly = false;
+  if (candidate.lane) laneHoldState[candidate.lane] = candidate;
+
+  // head feedback (does not finish the hold)
+  if (!candidate.headHit) {
+    combo = 0; comboEl.textContent = combo;
+    requestAnimationFrame(() => showTemporaryText('MISS', 900));
+    applyJudgement('MISS');
+  } else {
+    combo += 1; comboEl.textContent = combo;
+    requestAnimationFrame(() => showTemporaryText(j, 900));
+    applyJudgement(j);
+  }
+  return;
 }
 
 function handleKeyup(e){
