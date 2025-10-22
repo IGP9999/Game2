@@ -429,7 +429,7 @@ function draw(){
       ctx.beginPath(); ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI*2); ctx.stroke();
 
       if (!n.tailConsumed){
-        ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS - 6, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(tail, n.y, NOTE_RADIUS, 0, Math.PI*2); ctx.stroke();
       }
     } else {
       if (!n.active) return;
