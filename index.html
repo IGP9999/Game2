@@ -67,18 +67,18 @@ const songs = {
   song1: { id:'song1', title:'World Reset', audioSrc:'WORLD RESET.mp3', NOTESPEED:19.6078431,
     notesData:[
       { type:'tap', x:1680, y:NOTE_Y0, lane:'L1' },
-      { type:'tap', x:1680 + 5*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'tap', x:1680 + 9*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'tap', x:1680 + 13*19.6078431, y:NOTE_Y2, lane:'L1' },
-      { type:'hold', x:1680 + 18*19.6078431, y:NOTE_Y0, lengthPx:5*19.6078431, lane:'L1' },
+      { type:'tap', x:1680+5*19.6078431, y:NOTE_Y1, lane:'L1' },
+      { type:'tap', x:1680+9*19.6078431, y:NOTE_Y1, lane:'L1' },
+      { type:'tap', x:1680+13*19.6078431, y:NOTE_Y2, lane:'L1' },
+      { type:'hold', x:1680+18*19.6078431, y:NOTE_Y0, lengthPx:5*19.6078431, lane:'L1' },
       { type:'tap', x:1680+27*19.6078431, y:NOTE_Y0, lane:'L1' },
       { type:'tap', x:1680+32*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+36*19.6078431, y:NOTE_Y2, lane:'L1' },
       { type:'tap', x:1680+41*19.6078431, y:NOTE_Y2, lane:'L1' },
       { type:'tap', x:1680+46*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+50*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 55*19.6078431, y:NOTE_Y2, lengthPx:8*19.6078431, lane:'L1' },
-      { type:'hold', x:1680 + 63*19.6078431, y:NOTE_Y0, lengthPx:4*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+55*19.6078431, y:NOTE_Y2, lengthPx:8*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+63*19.6078431, y:NOTE_Y0, lengthPx:4*19.6078431, lane:'L1' },
       { type:'tap', x:1680+72*19.6078431, y:NOTE_Y0, lane:'L1' },
       { type:'tap', x:1680+79*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+86*19.6078431, y:NOTE_Y0, lane:'L1' },
@@ -112,11 +112,11 @@ const songs = {
       { type:'tap', x:1680+215*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+219*19.6078431, y:NOTE_Y2, lane:'L1' },
       { type:'tap', x:1680+224*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 228*19.6078431, y:NOTE_Y0, lengthPx:7*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+228*19.6078431, y:NOTE_Y0, lengthPx:7*19.6078431, lane:'L1' },
       { type:'tap', x:1680+237*19.6078431, y:NOTE_Y2, lane:'L1' },
       { type:'tap', x:1680+241*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 246*19.6078431, y:NOTE_Y0, lengthPx:2.5*19.6078431, lane:'L1' },
-      { type:'hold', x:1680 + 251*19.6078431, y:NOTE_Y0, lengthPx:2.5*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+246*19.6078431, y:NOTE_Y0, lengthPx:2.5*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+251*19.6078431, y:NOTE_Y0, lengthPx:2.5*19.6078431, lane:'L1' },
       { type:'tap', x:1680+256*19.6078431, y:NOTE_Y2, lane:'L1' },
       { type:'tap', x:1680+260*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+265*19.6078431, y:NOTE_Y0, lane:'L1' },
@@ -125,11 +125,11 @@ const songs = {
       { type:'tap', x:1680+272.5*19.6078431, y:NOTE_Y0, lane:'L1' },
       { type:'tap', x:1680+293*19.6078431, y:NOTE_Y1, lane:'L1' },
       { type:'tap', x:1680+298*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 302*19.6078431, y:NOTE_Y1, lengthPx:4.5*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+302*19.6078431, y:NOTE_Y1, lengthPx:4.5*19.6078431, lane:'L1' },
       { type:'tap', x:1680+306.5*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 311*19.6078431, y:NOTE_Y0, lengthPx:4.5*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+311*19.6078431, y:NOTE_Y0, lengthPx:4.5*19.6078431, lane:'L1' },
       { type:'tap', x:1680+315.5*19.6078431, y:NOTE_Y1, lane:'L1' },
-      { type:'hold', x:1680 + 320*19.6078431, y:NOTE_Y0, lengthPx:4.5*19.6078431, lane:'L1' },
+      { type:'hold', x:1680+320*19.6078431, y:NOTE_Y0, lengthPx:4.5*19.6078431, lane:'L1' },
       { type:'tap', x:1680+324.5*19.6078431, y:NOTE_Y1, lane:'L1' },
     ]
   },
@@ -205,13 +205,13 @@ function updateScoreUI(){
 
 // --- judgement
 function getJudgement(x){
-  if (x >= (JUDGE_X - 12 * NOTESPEED) && x < (JUDGE_X - 8 * NOTESPEED)) return 'MISS';
-  if (x >= (JUDGE_X - 8 * NOTESPEED) && x < (JUDGE_X - 5 * NOTESPEED)) return 'L-GOOD';
-  if (x >= (JUDGE_X - 5 * NOTESPEED) && x < (JUDGE_X - 2 * NOTESPEED)) return 'L-PERFECT';
-  if (x >= (JUDGE_X - 2 * NOTESPEED) && x <= (JUDGE_X + 2 * NOTESPEED)) return 'ACE';
-  if (x > (JUDGE_X + 2 * NOTESPEED) && x <= (JUDGE_X + 5 * NOTESPEED)) return 'E-GOOD';
-  if (x > (JUDGE_X + 5 * NOTESPEED) && x <= (JUDGE_X + 8 * NOTESPEED)) return 'E-PERFECT';
-  if (x > (JUDGE_X + 8 * NOTESPEED) && x <= (JUDGE_X + 12 * NOTESPEED)) return 'MISS';
+  if (x >= (JUDGE_X - 8 * NOTESPEED) && x < (JUDGE_X - 5 * NOTESPEED)) return 'MISS';
+  if (x >= (JUDGE_X - 5 * NOTESPEED) && x < (JUDGE_X - 3 * NOTESPEED)) return 'L-GOOD';
+  if (x >= (JUDGE_X - 3 * NOTESPEED) && x <= (JUDGE_X - 2 * NOTESPEED)) return 'L-PERFECT';
+  if (x >= (JUDGE_X - 1 * NOTESPEED) && x <= (JUDGE_X + 1 * NOTESPEED)) return 'ACE';
+  if (x >= (JUDGE_X + 2 * NOTESPEED) && x <= (JUDGE_X + 3 * NOTESPEED)) return 'E-PERFECT';
+  if (x > (JUDGE_X + 3 * NOTESPEED) && x <= (JUDGE_X + 5 * NOTESPEED)) return 'E-GOOD';
+  if (x > (JUDGE_X + 5 * NOTESPEED) && x <= (JUDGE_X + 8 * NOTESPEED)) return 'MISS';
   return null;
 }
 function applyJudgement(j){
